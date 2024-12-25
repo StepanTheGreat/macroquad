@@ -279,12 +279,6 @@ pub struct GpuQuery {
     pub force_resume: bool,
 }
 
-pub fn scene_allocated_memory() -> usize {
-    use crate::experimental::scene;
-
-    scene::allocated_memory()
-}
-
 /// ```skip
 /// {
 ///    let _t = telemetry::LogTimeGuard::new("Atlas build time");
@@ -327,15 +321,6 @@ pub fn drawcalls() -> Vec<DrawCallTelemetry> {
 
 pub fn strings() -> Vec<String> {
     get_profiler().strings.clone()
-}
-
-/// Note that coroutines pre-allocate 56Kb, so 56000 as a result doesnt mean a leak
-pub fn coroutines_allocated_memory() -> usize {
-    get_context().coroutines_context.allocated_memory()
-}
-
-pub fn active_coroutines_count() -> usize {
-    get_context().coroutines_context.active_coroutines_count()
 }
 
 pub fn capture_frame() {

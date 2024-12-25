@@ -62,8 +62,6 @@ pub mod time;
 pub mod ui;
 pub mod window;
 
-pub mod experimental;
-
 pub mod prelude;
 
 pub mod telemetry;
@@ -71,65 +69,6 @@ pub mod telemetry;
 mod error;
 
 pub use error::Error;
-
-/// Macroquad entry point.
-///
-/// ```skip
-/// #[main("Window name")]
-/// async fn main() {
-/// }
-/// ```
-///
-/// ```skip
-/// fn window_conf() -> Conf {
-///     Conf {
-///         window_title: "Window name".to_owned(),
-///         fullscreen: true,
-///         ..Default::default()
-///     }
-/// }
-/// #[macroquad::main(window_conf)]
-/// async fn main() {
-/// }
-/// ```
-///
-/// ## Error handling
-///
-/// `async fn main()` can have the same signature as a normal `main` in Rust.
-/// The most typical use cases are:
-/// * `async fn main() {}`
-/// * `async fn main() -> Result<(), Error> {}` (note that `Error` should implement `Debug`)
-///
-/// When a lot of third party crates are involved and very different errors may happens, `anyhow` crate may help:
-/// * `async fn main() -> anyhow::Result<()> {}`
-///
-/// For better control over game errors custom error type may be introduced:
-/// ```skip
-/// #[derive(Debug)]
-/// enum GameError {
-///     FileError(macroquad::FileError),
-///     SomeThirdPartyCrateError(somecrate::Error)
-/// }
-/// impl From<macroquad::file::FileError> for GameError {
-///     fn from(error: macroquad::file::FileError) -> GameError {
-///         GameError::FileError(error)
-///     }
-/// }
-/// impl From<somecrate::Error> for GameError {
-///     fn from(error: somecrate::Error) -> GameError {
-///         GameError::SomeThirdPartyCrateError(error)
-///     }
-/// }
-/// ```
-pub use macroquad_macro::main;
-
-/// #[macroquad::test] fn test() {}
-///
-/// Very similar to macroquad::main
-/// Right now it will still spawn a window, just like ::main, therefore
-/// is not really useful for anything than developping macroquad itself
-#[doc(hidden)]
-pub use macroquad_macro::test;
 
 /// Cross platform random generator.
 pub mod rand {
@@ -206,7 +145,6 @@ struct Context {
     camera_matrix: Option<Mat4>,
 
     ui_context: UiContext,
-    coroutines_context: experimental::coroutines::CoroutinesContext,
     fonts_storage: text::FontsStorage,
 
     pc_assets_folder: Option<String>,
@@ -349,7 +287,6 @@ impl Context {
             camera_stack: vec![],
 
             audio_context: audio::AudioContext::new(),
-            coroutines_context: experimental::coroutines::CoroutinesContext::new(),
 
             pc_assets_folder: None,
 
@@ -397,8 +334,6 @@ impl Context {
     }
 
     fn end_frame(&mut self) {
-        crate::experimental::scene::update();
-
         self.perform_render_passes();
 
         self.ui_context.draw(get_quad_context(), &mut self.gl);
@@ -730,7 +665,6 @@ impl EventHandler for Stage {
                         miniquad::window::quit();
                         return;
                     }
-                    get_context().coroutines_context.update();
                 }),
             );
 

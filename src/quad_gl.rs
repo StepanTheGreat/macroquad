@@ -354,7 +354,7 @@ impl PipelineExt {
         let uniform_byte_size = uniform_meta.byte_size;
         let uniform_byte_offset = uniform_meta.byte_offset;
 
-        let data = uniform.to_bytes();
+        let data = unsafe { uniform.to_bytes() };
         if data.len() != uniform_byte_size {
             warn!(
                 "Trying to set uniform {} sized {} bytes value of {} bytes",

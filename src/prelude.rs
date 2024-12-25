@@ -20,8 +20,6 @@ pub use miniquad::{
 };
 pub use quad_rand as rand;
 
-pub use crate::experimental::*;
-
 pub use crate::logging::*;
 
 pub use crate::color_u8;
