@@ -54,11 +54,12 @@ pub mod file;
 pub mod input;
 pub mod material;
 pub mod math;
-pub mod models;
+pub mod geometry;
 pub mod shapes;
 pub mod text;
 pub mod texture;
 pub mod time;
+#[cfg(feature="ui")]
 pub mod ui;
 pub mod window;
 
@@ -87,32 +88,15 @@ pub use miniquad;
 
 use crate::{
     color::{colors::*, Color},
-    quad_gl::QuadGl,
-    texture::TextureHandle,
-    ui::ui_context::UiContext,
+    quad_gl::DrawCallBatcher,
+    texture::TextureHandle
 };
+
+#[cfg(feature="ui")]
+use crate::ui::ui_context::UiContext;
 
 use glam::{vec2, Mat4, Vec2};
 
-pub(crate) mod thread_assert {
-    static mut THREAD_ID: Option<std::thread::ThreadId> = None;
-
-    pub fn set_thread_id() {
-        unsafe {
-            THREAD_ID = Some(std::thread::current().id());
-        }
-    }
-
-    pub fn same_thread() {
-        unsafe {
-            thread_local! {
-                static CURRENT_THREAD_ID: std::thread::ThreadId = std::thread::current().id();
-            }
-            assert!(THREAD_ID.is_some());
-            assert!(THREAD_ID.unwrap() == CURRENT_THREAD_ID.with(|id| *id));
-        }
-    }
-}
 struct Context {
     audio_context: audio::AudioContext,
 
@@ -141,9 +125,10 @@ struct Context {
 
     input_events: Vec<Vec<MiniquadInputEvent>>,
 
-    gl: QuadGl,
+    gl: DrawCallBatcher,
     camera_matrix: Option<Mat4>,
 
+    #[cfg(feature="ui")]
     ui_context: UiContext,
     fonts_storage: text::FontsStorage,
 
@@ -275,12 +260,13 @@ impl Context {
             input_events: Vec::new(),
 
             camera_matrix: None,
-            gl: QuadGl::new(
+            gl: DrawCallBatcher::new(
                 &mut *ctx,
                 draw_call_vertex_capacity,
                 draw_call_index_capacity,
             ),
 
+            #[cfg(feature="ui")]
             ui_context: UiContext::new(&mut *ctx, screen_width, screen_height),
             fonts_storage: text::FontsStorage::new(&mut *ctx),
             texture_batcher: texture::Batcher::new(&mut *ctx),
@@ -325,6 +311,7 @@ impl Context {
     fn begin_frame(&mut self) {
         telemetry::begin_gpu_query("GPU");
 
+        #[cfg(feature="ui")]
         self.ui_context.process_input();
 
         let color = Self::DEFAULT_BG_COLOR;
@@ -336,7 +323,9 @@ impl Context {
     fn end_frame(&mut self) {
         self.perform_render_passes();
 
+        #[cfg(feature="ui")]
         self.ui_context.draw(get_quad_context(), &mut self.gl);
+
         let screen_mat = self.pixel_perfect_projection_matrix();
         self.gl.draw(get_quad_context(), screen_mat);
 
@@ -415,14 +404,10 @@ pub mod test {
 }
 
 fn get_context() -> &'static mut Context {
-    thread_assert::same_thread();
-
     unsafe { CONTEXT.as_mut().unwrap_or_else(|| panic!()) }
 }
 
 fn get_quad_context() -> &'static mut dyn miniquad::RenderingBackend {
-    thread_assert::same_thread();
-
     unsafe {
         assert!(CONTEXT.is_some());
     }
@@ -805,7 +790,6 @@ impl Window {
             draw_call_index_capacity,
         } = config.into();
         miniquad::start(miniquad_conf, move || {
-            thread_assert::set_thread_id();
             let context = Context::new(
                 update_on.unwrap_or_default(),
                 default_filter_mode,

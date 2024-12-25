@@ -7,7 +7,7 @@ use crate::{
     ui::render::DrawCommand,
 };
 
-pub use crate::models::Vertex;
+pub use crate::geometry::Vertex;
 
 const MAX_VERTICES: usize = 8000;
 const MAX_INDICES: usize = 4000;

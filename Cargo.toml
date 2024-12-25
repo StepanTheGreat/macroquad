@@ -10,6 +10,7 @@ license = "MIT OR Apache-2.0"
 audio = ["quad-snd"]
 log-rs = ["log"]
 glam-serde = ["glam/serde"]
+ui = []
 default = []
 
 [package.metadata.android]
@@ -34,5 +35,5 @@ quad-snd = { version = "0.2", optional = true }
 # Workaround to fix the examples
 # This allows to use macroquad-particles in examples without two versions of macroquad
 [patch.crates-io]
-macroquad = { path = './' }
+macroquad_abstractions = { path = './' }
 

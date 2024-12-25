@@ -4,11 +4,11 @@ use miniquad::*;
 
 pub use miniquad::{FilterMode, TextureId as MiniquadTexture, UniformDesc};
 
-use crate::{color::Color, logging::warn, telemetry, texture::Texture2D, tobytes::ToBytes, Error};
+use crate::{color::Color, logging::warn, prelude::AsVertex, telemetry, texture::Texture2D, tobytes::ToBytes, Error};
 
 use std::collections::BTreeMap;
 
-pub(crate) use crate::models::Vertex;
+pub(crate) use crate::geometry::Vertex;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DrawMode {
@@ -370,19 +370,19 @@ impl PipelineExt {
     }
 }
 
-struct PipelinesStorage {
+struct PipelineStorage {
     pipelines: [Option<PipelineExt>; Self::MAX_PIPELINES],
     pipelines_amount: usize,
 }
 
-impl PipelinesStorage {
+impl PipelineStorage {
     const MAX_PIPELINES: usize = 32;
     const TRIANGLES_PIPELINE: GlPipeline = GlPipeline(0);
     const LINES_PIPELINE: GlPipeline = GlPipeline(1);
     const TRIANGLES_DEPTH_PIPELINE: GlPipeline = GlPipeline(2);
     const LINES_DEPTH_PIPELINE: GlPipeline = GlPipeline(3);
 
-    fn new(ctx: &mut dyn RenderingBackend) -> PipelinesStorage {
+    fn new<V: AsVertex>(ctx: &mut dyn RenderingBackend) -> Self {
         let shader = ctx
             .new_shader(
                 match ctx.info().backend {
@@ -407,12 +407,12 @@ impl PipelinesStorage {
             ..Default::default()
         };
 
-        let mut storage = PipelinesStorage {
+        let mut storage = Self {
             pipelines: Default::default(),
             pipelines_amount: 0,
         };
 
-        let triangles_pipeline = storage.make_pipeline(
+        let triangles_pipeline = storage.make_pipeline::<V>(
             ctx,
             shader,
             PipelineParams {
@@ -425,7 +425,7 @@ impl PipelinesStorage {
         );
         assert_eq!(triangles_pipeline, Self::TRIANGLES_PIPELINE);
 
-        let lines_pipeline = storage.make_pipeline(
+        let lines_pipeline = storage.make_pipeline::<V>(
             ctx,
             shader,
             PipelineParams {
@@ -438,7 +438,7 @@ impl PipelinesStorage {
         );
         assert_eq!(lines_pipeline, Self::LINES_PIPELINE);
 
-        let triangles_depth_pipeline = storage.make_pipeline(
+        let triangles_depth_pipeline = storage.make_pipeline::<V>(
             ctx,
             shader,
             PipelineParams {
@@ -453,7 +453,7 @@ impl PipelinesStorage {
         );
         assert_eq!(triangles_depth_pipeline, Self::TRIANGLES_DEPTH_PIPELINE);
 
-        let lines_depth_pipeline = storage.make_pipeline(
+        let lines_depth_pipeline = storage.make_pipeline::<V>(
             ctx,
             shader,
             PipelineParams {
@@ -471,7 +471,7 @@ impl PipelinesStorage {
         storage
     }
 
-    fn make_pipeline(
+    fn make_pipeline<V: AsVertex>(
         &mut self,
         ctx: &mut dyn RenderingBackend,
         shader: ShaderId,
@@ -482,12 +482,7 @@ impl PipelinesStorage {
     ) -> GlPipeline {
         let pipeline = ctx.new_pipeline(
             &[BufferLayout::default()],
-            &[
-                VertexAttribute::new("position", VertexFormat::Float3),
-                VertexAttribute::new("texcoord", VertexFormat::Float2),
-                VertexAttribute::new("color0", VertexFormat::Byte4),
-                VertexAttribute::new("normal", VertexFormat::Float4),
-            ],
+            &(V::attributes()),
             shader,
             params,
         );
@@ -552,8 +547,9 @@ impl PipelinesStorage {
     }
 }
 
-pub struct QuadGl {
-    pipelines: PipelinesStorage,
+pub struct DrawCallBatcher<V = Vertex>
+where V: AsVertex {
+    pipelines: PipelineStorage,
 
     draw_calls: Vec<DrawCall>,
     draw_calls_bindings: Vec<Bindings>,
@@ -565,20 +561,21 @@ pub struct QuadGl {
     max_vertices: usize,
     max_indices: usize,
 
-    batch_vertex_buffer: Vec<Vertex>,
+    batch_vertex_buffer: Vec<V>,
     batch_index_buffer: Vec<u16>,
 }
 
-impl QuadGl {
+impl<V> DrawCallBatcher<V>
+where V: AsVertex {
     pub fn new(
         ctx: &mut dyn miniquad::RenderingBackend,
         max_vertices: usize,
         max_indices: usize,
-    ) -> QuadGl {
+    ) -> Self {
         let white_texture = ctx.new_texture_from_rgba8(1, 1, &[255, 255, 255, 255]);
 
-        QuadGl {
-            pipelines: PipelinesStorage::new(ctx),
+        Self {
+            pipelines: PipelineStorage::new::<V>(ctx),
             state: GlState {
                 clip: None,
                 viewport: None,
@@ -639,7 +636,7 @@ impl QuadGl {
         };
         let wants_screen_texture = source.contains("_ScreenTexture");
         let shader = ctx.new_shader(shader, shader_meta)?;
-        Ok(self.pipelines.make_pipeline(
+        Ok(self.pipelines.make_pipeline::<V>(
             ctx,
             shader,
             params,
@@ -649,7 +646,8 @@ impl QuadGl {
         ))
     }
 
-    pub(crate) fn clear(&mut self, ctx: &mut dyn miniquad::RenderingBackend, color: Color) {
+    /// Clear the framebuffer with a specified color, then clear the draw calls
+    pub fn clear(&mut self, ctx: &mut dyn miniquad::RenderingBackend, color: Color) {
         let clear = PassAction::clear_color(color.r, color.g, color.b, color.a);
 
         if let Some(current_pass) = self.state.render_pass {
@@ -672,7 +670,6 @@ impl QuadGl {
         self.state.clip = None;
         self.state.texture = None;
         self.state.model_stack = vec![glam::Mat4::IDENTITY];
-
         self.draw_calls_count = 0;
     }
 
@@ -683,7 +680,7 @@ impl QuadGl {
             let vertex_buffer = ctx.new_buffer(
                 BufferType::VertexBuffer,
                 BufferUsage::Stream,
-                BufferSource::empty::<Vertex>(self.max_vertices),
+                BufferSource::empty::<V>(self.max_vertices),
             );
             let index_buffer = ctx.new_buffer(
                 BufferType::IndexBuffer,
@@ -856,9 +853,11 @@ impl QuadGl {
         self.state.model_stack.push(self.state.model() * matrix);
     }
 
-    pub fn pop_model_matrix(&mut self) {
+    pub fn pop_model_matrix(&mut self) -> Option<glam::Mat4>{
         if self.state.model_stack.len() > 1 {
-            self.state.model_stack.pop();
+            self.state.model_stack.pop()
+        } else {
+            None
         }
     }
 
@@ -875,7 +874,8 @@ impl QuadGl {
         self.state.draw_mode = mode;
     }
 
-    pub fn geometry(&mut self, vertices: &[Vertex], indices: &[u16]) {
+    /// TODO: Document this 
+    pub fn geometry(&mut self, vertices: &[V], indices: &[u16]) {
         if vertices.len() >= self.max_vertices || indices.len() >= self.max_indices {
             warn!("geometry() exceeded max drawcall size, clamping");
         }
@@ -998,7 +998,8 @@ impl QuadGl {
             .or_insert(quad_texture) = quad_texture;
     }
 
-    pub(crate) fn update_drawcall_capacity(
+
+    pub fn update_drawcall_capacity(
         &mut self,
         ctx: &mut dyn miniquad::RenderingBackend,
         max_vertices: usize,
@@ -1012,6 +1013,7 @@ impl QuadGl {
             draw_call.indices_start = 0;
             draw_call.vertices_start = 0;
         }
+
         for binding in &mut self.draw_calls_bindings {
             ctx.delete_buffer(binding.index_buffer);
             for vertex_buffer in &binding.vertex_buffers {
@@ -1020,7 +1022,7 @@ impl QuadGl {
             let vertex_buffer = ctx.new_buffer(
                 BufferType::VertexBuffer,
                 BufferUsage::Stream,
-                BufferSource::empty::<Vertex>(self.max_vertices),
+                BufferSource::empty::<V>(self.max_vertices),
             );
             let index_buffer = ctx.new_buffer(
                 BufferType::IndexBuffer,

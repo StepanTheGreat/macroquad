@@ -1,9 +1,21 @@
 //! 3D shapes and models, loading 3d models from files, drawing 3D primitives.
 
+use crate::quad_gl::DrawCallBatcher;
 use crate::{color::Color, get_context};
 
 use crate::{quad_gl::DrawMode, texture::Texture2D};
 use glam::{vec2, vec3, vec4, Quat, Vec2, Vec3, Vec4};
+use miniquad::{VertexAttribute, VertexFormat};
+
+
+/// A vertex trait that you can implement on any type you want to turn into a Vertex.
+/// 
+/// Attention: the desired type should be [`repr(C)`], and all its fields have to implement [`ToBytes`] 
+pub unsafe trait AsVertex
+where Self: Clone + Copy {
+    /// Get [`VertexAttribute`]s of this Vertex. This is required when constructing pipelines
+    fn attributes() -> Vec<VertexAttribute>;
+}
 
 #[repr(C)]
 #[derive(Clone, Debug, Copy)]
@@ -38,18 +50,28 @@ impl Vertex {
     }
 }
 
-pub struct Mesh {
-    pub vertices: Vec<Vertex>,
+unsafe impl AsVertex for Vertex {
+    fn attributes() -> Vec<VertexAttribute> {
+        vec![
+            VertexAttribute::new("position", VertexFormat::Float3),
+            VertexAttribute::new("texcoord", VertexFormat::Float2),
+            VertexAttribute::new("color0", VertexFormat::Byte4),
+            VertexAttribute::new("normal", VertexFormat::Float4),
+        ]
+    }
+}
+
+pub struct Mesh<V>
+where V: AsVertex {
+    pub vertices: Vec<V>,
     pub indices: Vec<u16>,
     pub texture: Option<Texture2D>,
 }
 
-pub fn draw_mesh(mesh: &Mesh) {
-    let context = get_context();
-
-    context.gl.texture(mesh.texture.as_ref());
-    context.gl.draw_mode(DrawMode::Triangles);
-    context.gl.geometry(&mesh.vertices[..], &mesh.indices[..]);
+pub fn draw_mesh<V: AsVertex>(gl: &mut DrawCallBatcher<V>, mesh: &Mesh<V>) {
+    gl.texture(mesh.texture.as_ref());
+    gl.draw_mode(DrawMode::Triangles);
+    gl.geometry(&mesh.vertices[..], &mesh.indices[..]);
 }
 
 fn draw_quad(vertices: [Vertex; 4]) {

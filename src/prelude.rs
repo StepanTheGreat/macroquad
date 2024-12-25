@@ -5,7 +5,7 @@ pub use crate::file::*;
 pub use crate::input::*;
 pub use crate::material::*;
 pub use crate::math::*;
-pub use crate::models::*;
+pub use crate::geometry::*;
 pub use crate::shapes::*;
 pub use crate::text::*;
 pub use crate::texture::*;
@@ -13,7 +13,7 @@ pub use crate::time::*;
 pub use crate::window::*;
 
 pub use crate::color::{colors::*, Color};
-pub use crate::quad_gl::{DrawMode, GlPipeline, QuadGl};
+pub use crate::quad_gl::{DrawMode, GlPipeline, DrawCallBatcher};
 pub use glam;
 pub use miniquad::{
     conf::Conf, Comparison, PipelineParams, ShaderError, ShaderSource, UniformDesc, UniformType,

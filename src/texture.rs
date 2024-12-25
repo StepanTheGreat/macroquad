@@ -1,8 +1,7 @@
 //! Loading and rendering textures. Also render textures, per-pixel image manipulations.
 
 use crate::{
-    color::Color, file::load_file, get_context, get_quad_context, math::Rect,
-    text::atlas::SpriteKey, Error,
+    color::Color, file::load_file, get_context, get_quad_context, math::Rect, quad_gl::DrawCallBatcher, text::atlas::SpriteKey, Error
 };
 
 pub use crate::quad_gl::FilterMode;
@@ -29,6 +28,7 @@ pub(crate) struct TexturesContext {
     textures: TextureIdSlotMap,
     removed: Vec<TextureSlotId>,
 }
+
 impl TexturesContext {
     pub fn new() -> TexturesContext {
         TexturesContext {
@@ -42,15 +42,15 @@ impl TexturesContext {
     fn store_texture(&mut self, texture: miniquad::TextureId) -> TextureHandle {
         TextureHandle::Managed(Arc::new(TextureSlotGuarded(self.textures.insert(texture))))
     }
+    
     pub fn texture(&self, texture: TextureSlotId) -> Option<miniquad::TextureId> {
         self.textures.get(texture)
     }
-    // fn remove(&mut self, texture: TextureSlotId) {
-    //     self.textures.remove(texture);
-    // }
+
     pub const fn len(&self) -> usize {
         self.textures.len()
     }
+
     pub fn garbage_collect(&mut self, ctx: &mut miniquad::Context) {
         for texture in self.removed.drain(0..) {
             if let Some(texture) = self.textures.get(texture) {
@@ -602,9 +602,7 @@ pub fn draw_texture_ex(
 
 /// Get pixel data from screen buffer and return an Image (screenshot)
 pub fn get_screen_data() -> Image {
-    unsafe {
-        crate::window::get_internal_gl().flush();
-    }
+    get_context().perform_render_passes();
 
     let context = get_context();
 
