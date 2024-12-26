@@ -4,11 +4,11 @@ use miniquad::*;
 
 pub use miniquad::{FilterMode, TextureId as MiniquadTexture, UniformDesc};
 
-use crate::{color::Color, logging::warn, prelude::AsVertex, telemetry, texture::Texture2D, tobytes::ToBytes, Error};
+use crate::{color::Color, logging::warn, telemetry, texture::Texture2D, tobytes::ToBytes, Error};
 
 use std::collections::BTreeMap;
 
-pub(crate) use crate::geometry::Vertex;
+pub(crate) use super::geometry::{Vertex, AsVertex};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DrawMode {
@@ -547,7 +547,11 @@ impl PipelineStorage {
     }
 }
 
-pub struct DrawCallBatcher<V = Vertex>
+/// This structure does a lot:
+/// 1. It batches draw calls (i.e. unifies similar drawcalls or smaller ones into larger ones)
+/// 2. It performs draw calls on the supplied rendering context
+/// 3. It creates pipelines
+pub struct Renderer<V = Vertex>
 where V: AsVertex {
     pipelines: PipelineStorage,
 
@@ -565,7 +569,7 @@ where V: AsVertex {
     batch_index_buffer: Vec<u16>,
 }
 
-impl<V> DrawCallBatcher<V>
+impl<V> Renderer<V>
 where V: AsVertex {
     pub fn new(
         ctx: &mut dyn miniquad::RenderingBackend,

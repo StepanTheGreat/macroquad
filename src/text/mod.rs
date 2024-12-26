@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use crate::{
     color::Color,
     get_context, get_quad_context,
-    math::{vec3, Rect},
     texture::{Image, TextureHandle},
     Error,
 };
@@ -465,16 +464,19 @@ pub fn measure_text(
     font.measure_text(text, font_size, font_scale, font_scale)
 }
 
-pub(crate) struct FontsStorage {
+pub(crate) struct FontStorage {
     default_font: Font,
 }
 
-impl FontsStorage {
-    pub(crate) fn new(ctx: &mut dyn miniquad::RenderingBackend) -> FontsStorage {
+impl FontStorage {
+    pub fn new(
+        ctx: &mut dyn miniquad::RenderingBackend,
+        default_font: Font
+    ) -> Self {
         let atlas = Arc::new(Mutex::new(Atlas::new(ctx, miniquad::FilterMode::Linear)));
 
         let default_font = Font::load_from_bytes(atlas, include_bytes!("ProggyClean.ttf")).unwrap();
-        FontsStorage { default_font }
+        Self { default_font }
     }
 }
 

@@ -1,36 +1,23 @@
 //! Window and associated to window rendering context related functions.
 
-use crate::quad_gl::DrawCallBatcher;
-use crate::{get_context, get_quad_context};
-
-use crate::color::Color;
+use crate::get_context;
 
 // miniquad is re-exported for the use in combination with `get_internal_gl`
 pub use miniquad;
 
 pub use miniquad::conf::Conf;
 
-/// Block execution until the next frame.
-pub fn next_frame() -> crate::exec::FrameFuture {
-    crate::exec::FrameFuture::default()
-}
-
-/// Fill window background with solid color.
-/// Note: even when "clear_background" was not called explicitly
-/// screen will be cleared at the beginning of the frame.
-pub fn clear_background(gl: &mut DrawCallBatcher, color: Color) {
-    gl.clear(get_quad_context(), color);
-}
+pub use miniquad::window::*;
 
 pub fn screen_width() -> f32 {
     let context = get_context();
-    (context.screen_width / miniquad::window::dpi_scale()).into()
+    context.screen_width / miniquad::window::dpi_scale()
 }
 
 pub fn screen_height() -> f32 {
     let context = get_context();
 
-    (context.screen_height / miniquad::window::dpi_scale()).into()
+    context.screen_height / miniquad::window::dpi_scale()
 }
 
 pub fn screen_dpi_scale() -> f32 {
@@ -50,10 +37,10 @@ pub fn request_new_screen_size(width: f32, height: f32) {
     // Because the OS might decide to give a different screen dimension, setting the context.screen_* here would be confusing.
 }
 
-/// Toggle whether the window is fullscreen.
-pub fn set_fullscreen(fullscreen: bool) {
-    miniquad::window::set_fullscreen(fullscreen);
-}
+// /// Toggle whether the window is fullscreen.
+// pub fn set_fullscreen(fullscreen: bool) {
+//     miniquad::window::set_fullscreen(fullscreen);
+// }
 
 /// With `set_panic_handler` set to a handler code, macroquad will use
 /// `std::panic::catch_unwind` on user code to catch some panics.

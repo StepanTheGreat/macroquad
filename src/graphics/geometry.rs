@@ -1,11 +1,12 @@
 //! 3D shapes and models, loading 3d models from files, drawing 3D primitives.
 
-use crate::quad_gl::DrawCallBatcher;
 use crate::{color::Color, get_context};
 
-use crate::{quad_gl::DrawMode, texture::Texture2D};
+use crate::texture::Texture2D;
 use glam::{vec2, vec3, vec4, Quat, Vec2, Vec3, Vec4};
 use miniquad::{VertexAttribute, VertexFormat};
+
+use super::{Renderer, DrawMode};
 
 
 /// A vertex trait that you can implement on any type you want to turn into a Vertex.

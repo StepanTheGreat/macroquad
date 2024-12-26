@@ -1,6 +1,6 @@
 //! Custom materials - shaders, uniforms.
 
-use crate::{get_context, quad_gl::GlPipeline, texture::Texture2D, tobytes::ToBytes, Error};
+use crate::{get_context, graphics::GlPipeline, texture::Texture2D, tobytes::ToBytes, Error};
 use miniquad::{PipelineParams, UniformDesc};
 use std::sync::Arc;
 

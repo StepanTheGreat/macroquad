@@ -2,7 +2,6 @@
 
 use crate::{
     get_context,
-    math::Rect,
     prelude::RenderPass,
     texture::RenderTarget,
     window::{screen_height, screen_width},
