@@ -1,9 +1,6 @@
 use glam::{vec2, Vec2};
-use miniquad::TextureId;
 use crate::{
-    color::Color, 
-    graphics::{Renderer, Vertex, DrawMode}, 
-    utils::Rect
+    color::Color, graphics::{DrawMode, Renderer, Vertex}, texture::Texture, utils::Rect
 };
 
 #[derive(Debug, Clone)]
@@ -45,25 +42,24 @@ impl Default for DrawTextureParams {
     }
 }
 
-pub fn draw_texture(gl: &mut Renderer<Vertex>, texture: &TextureId, x: f32, y: f32, color: Color) {
-    draw_texture_ex(gl, texture, x, y, color, Default::default());
+pub fn draw_texture(renderer: &mut Renderer<Vertex>, texture: &Texture, x: f32, y: f32, color: Color) {
+    draw_texture_ex(renderer, texture, x, y, color, Default::default());
 }
 
 pub fn draw_texture_ex(
-    gl: &mut Renderer<Vertex>,
-    texture: &TextureId,
+    renderer: &mut Renderer<Vertex>,
+    texture: &Texture,
     x: f32,
     y: f32,
     color: Color,
     params: DrawTextureParams,
 ) {
-    let [mut width, mut height] = texture.size().to_array();
-
+    let (width, height) = (texture.width() as f32, texture.height() as f32);
     let Rect {
-        x: mut sx,
-        y: mut sy,
-        w: mut sw,
-        h: mut sh,
+        x: sx,
+        y: sy,
+        w: sw,
+        h: sh,
     } = params.source.unwrap_or(Rect {
         x: 0.,
         y: 0.,
@@ -140,7 +136,7 @@ pub fn draw_texture_ex(
     ];
     let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
 
-    gl.texture(&mut gl, Some(texture));
-    gl.draw_mode(DrawMode::Triangles);
-    gl.geometry(&vertices, &indices);
+    renderer.with_texture(Some(texture.texture()));
+    renderer.with_draw_mode(DrawMode::Triangles);
+    renderer.push_geometry(&vertices, &indices);
 }

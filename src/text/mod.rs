@@ -14,7 +14,7 @@ use glam::vec2;
 use std::sync::{Arc, Mutex};
 pub(crate) mod atlas;
 
-use atlas::{Atlas, SpriteKey};
+use ::{Atlas, SpriteKey};
 
 #[derive(Debug, Clone)]
 pub(crate) struct CharacterInfo {

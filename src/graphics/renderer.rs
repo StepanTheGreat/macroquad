@@ -4,11 +4,11 @@ use miniquad::*;
 
 pub use miniquad::{FilterMode, TextureId as MiniquadTexture, UniformDesc};
 
-use crate::{color::Color, logging::warn, telemetry, tobytes::ToBytes, Error};
+use crate::{color::Color, logging::warn, tobytes::ToBytes, Error};
 
 use std::collections::BTreeMap;
 
-pub(crate) use super::geometry::{Vertex, AsVertex};
+pub(crate) use super::{Vertex, AsVertex};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DrawMode {
@@ -586,9 +586,10 @@ where V: AsVertex {
             ctx.draw(0, dc.indices_count as i32, 1);
             ctx.end_render_pass();
 
-            if dc.capture {
-                telemetry::track_drawcall(&pipeline.pipeline, bindings, dc.indices_count);
-            }
+            // TODO: Telemetry
+            // if dc.capture {
+            //     telemetry::track_drawcall(&pipeline.pipeline, bindings, dc.indices_count);
+            // }
 
             dc.vertices_count = 0;
             dc.indices_count = 0;

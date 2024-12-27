@@ -1,13 +1,11 @@
 //! Everything graphics related
 
-use glam::{vec3, vec4, Vec2, Vec3, Vec4};
+use glam::{vec2, vec3, vec4, Vec2, Vec3, Vec4};
 use miniquad::{VertexAttribute, VertexFormat};
 use crate::color::Color;
 
 mod renderer;
 pub use renderer::*;
-
-pub mod geometry;
 
 pub mod camera;
 pub use camera::{Camera, Camera2D, Camera3D};

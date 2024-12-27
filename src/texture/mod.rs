@@ -14,6 +14,94 @@ pub use image::Image;
 pub use texture::*;
 pub use atlas::*;
 
+/// A texture storage and state struct for said struct. 
+/// 
+/// Now, I know what you're thinking - this crate's sole purpose was to eliminate abstractions, 
+/// and now it provides even more abstractions? You're absolutely correct. One stupid issue I've ran into though,
+/// is that a lot of operations in macroquad (like drawing textures) simply rely on the global context. Why?
+/// To get the global [RenderingBackend], and check for a texture's size. 
+/// 
+/// To avoid getting in your way - this abstraction exists solely for drawing/texture manipulation purposes.
+#[derive(Clone, Debug)]
+pub struct Texture {
+    texture: TextureId,
+    width: u32,
+    height: u32,
+    filter: FilterMode,
+    mipmap: MipmapFilterMode
+}
+
+impl Texture {
+    /// Create this Texture from [Image]
+    pub fn from_image(
+        backend: &mut dyn RenderingBackend,
+        image: &Image
+    ) -> Self {
+        let texture = image.to_texture(backend);
+        Self::from_texture(backend, texture)
+    }
+
+    /// Create a new Texture from 
+    pub fn from_texture(
+        backend: &mut dyn RenderingBackend, 
+        texture: TextureId
+    ) -> Self {
+        let params = backend.texture_params(texture);
+
+        Self {
+            texture,
+            width: params.width,
+            height: params.height,
+            filter: params.mag_filter,
+            mipmap: params.mipmap_filter
+        }
+    }
+
+    /// Get the inner [TextureId] of this texture
+    pub fn texture(&self) -> &TextureId {
+        &self.texture
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn size(&self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+
+    pub fn filter(&self) -> &FilterMode {
+        &self.filter
+    }
+
+    /// Change the filter for this texture. Mipmap is optional
+    pub fn set_filter(
+        &mut self,
+        backend: &mut dyn RenderingBackend, 
+        new_filter: FilterMode,
+    ) {
+        self.filter = new_filter;
+        backend.texture_set_filter( 
+            self.texture,  
+            new_filter, 
+            MipmapFilterMode::None  
+        ); 
+    }
+
+    /// Delete the texture. It's the same as 
+    /// ```
+    /// backend.delete_texture(texture.texture());
+    /// ```
+    /// but, it's also a bit more convenient, since it's a self consuming method
+    pub fn delete(self, backend: &mut dyn RenderingBackend) {
+        backend.delete_texture(self.texture);
+    }
+}
+
 /// Create a texture from RGBA byte array and specified size, filter and mipmap filter information.
 /// 
 /// ### Warning
@@ -41,18 +129,26 @@ pub fn new_texture_from_rgba8(
 }
 
 /// Loads an [Image] from a file into CPU memory.
-pub fn load_image(path: &str) -> Result<Image, Error> {
-    let bytes = crate::fs::load_file(path);
+/// 
+/// Currently this function returns an [Option] as an ungly workaround
+pub fn load_image(path: &str) -> Option<Image> {
+    let bytes = match crate::fs::load_file(path) {
+        Ok(bytes) => bytes,
+        Err(_) => return None
+    };
 
-    Image::from_bytes_with_format(&bytes, None)
+    match Image::from_bytes_with_format(&bytes, None) {
+        Ok(img) => Some(img),
+        Err(_) => None
+    }
 }
 
 /// Loads a [TextureId] from a file. This will load an image first, and then convert it
 /// into a texture. If you would like to reuse the image - better use
 /// [Image::to_texture] instead.
-pub fn load_texture(backend: &mut dyn RenderingBackend, path: &str) -> Result<TextureId, Error> {
+pub fn load_texture(backend: &mut dyn RenderingBackend, path: &str) -> Option<TextureId> {
     let img = load_image(path)?;
-    Ok(img.to_texture(backend))
+    Some(img.to_texture(backend))
 }
 
 #[derive(Debug, Clone)]
@@ -176,7 +272,7 @@ pub fn new_render_target_ex(
 /// Batches textures into a single, large atlas. A useful optimization if you have multiple
 /// smaller textures and you would like to combine them to avoid issuing multiple draw calls per each
 pub struct TextureBatcher {
-    unbatched: Vec<TextureId>,
+    unbatched: Vec<Texture>,
     atlas: atlas::TextureAtlas,
 }
 
@@ -188,7 +284,7 @@ impl TextureBatcher {
         }
     }
 
-    pub fn add_unbatched(&mut self, texture: &TextureId) {
+    pub fn add_unbatched(&mut self, texture: Texture) {
         self.unbatched.push(texture);
     }
 

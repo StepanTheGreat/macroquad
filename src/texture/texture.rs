@@ -10,12 +10,12 @@ pub fn texture_update(
     texture: &TextureId, 
     image: &Image
 ) {
-    let (width, height) = backend.texture_size(texture);
+    let (width, height) = backend.texture_size(*texture);
 
     assert_eq!(width, image.width as u32, "The image should have the same width as the texture");
     assert_eq!(height, image.height as u32, "The image should have the same height as the texture");
 
-    backend.texture_update(texture, &image.bytes);
+    backend.texture_update(*texture, &image.bytes);
 }
 
 /// Updates the texture data from an array of bytes. This is almost identical to [texture_update],
@@ -27,12 +27,12 @@ pub fn texture_update_from_bytes(
     height: u32, 
     bytes: &[u8]
 ) {
-    let (texture_width, texture_height) = backend.texture_size(texture);
+    let (texture_width, texture_height) = backend.texture_size(*texture);
 
     assert_eq!(texture_width, width, "The texture should have the same width as the one provided");
     assert_eq!(texture_height, height, "The texture should have the same height as the one provided");
 
-    backend.texture_update(texture, bytes);
+    backend.texture_update(*texture, bytes);
 }
 
 /// Update only a part of the texture with specified image data.
@@ -58,7 +58,7 @@ pub fn texture_update_part(
     height: i32,
 ) {
     backend.texture_update_part(
-        texture,
+        *texture,
         x_offset,
         y_offset,
         width,
@@ -74,7 +74,7 @@ pub fn texture_update_part(
 /// let (width, _) = backend.texture_size(texture);
 /// ```
 pub fn texture_width(backend: &mut dyn RenderingBackend, texture: &TextureId) -> u32 {
-    let (width, _) = backend.texture_size(texture);
+    let (width, _) = backend.texture_size(*texture);
     width
 }
 
@@ -85,7 +85,7 @@ pub fn texture_width(backend: &mut dyn RenderingBackend, texture: &TextureId) ->
 /// let (_, height) = backend.texture_size(texture);
 /// ```
 pub fn texture_height(backend: &mut dyn RenderingBackend, texture: &TextureId) -> u32 {
-    let (_, height) = backend.texture_size(texture);
+    let (_, height) = backend.texture_size(*texture);
     height
 }
 
@@ -96,7 +96,7 @@ pub fn texture_height(backend: &mut dyn RenderingBackend, texture: &TextureId) -
 /// let (width, height) = backend.texture_size(texture);
 /// ```
 pub fn texture_size(backend: &mut dyn RenderingBackend, texture: &TextureId) -> (u32, u32) {
-    backend.texture_size(texture)
+    backend.texture_size(*texture)
 }
 
 /// Set [FilterMode] for the texture. 
@@ -116,7 +116,7 @@ pub fn texture_set_filter(
     filter_mode: FilterMode
 ) {
     backend.texture_set_filter(
-        texture,
+        *texture,
         filter_mode,
         miniquad::MipmapFilterMode::None,
     );
@@ -132,8 +132,8 @@ pub unsafe fn texture_grab_screen(
     backend: &mut dyn RenderingBackend,
     texture: &TextureId
 ) {
-    let params = backend.texture_params(texture);
-    let raw_id = match unsafe { backend.texture_raw_id(texture) } {
+    let params = backend.texture_params(*texture);
+    let raw_id = match unsafe { backend.texture_raw_id(*texture) } {
         miniquad::RawId::OpenGl(id) => id,
         _ => unimplemented!(),
     };
@@ -171,14 +171,14 @@ pub fn get_texture_data(
     backend: &mut dyn RenderingBackend,
     texture: &TextureId
 ) -> Image {
-    let (width, height) = backend.texture_size(texture);
+    let (width, height) = backend.texture_size(*texture);
     let mut image = Image {
         width: width as _,
         height: height as _,
         bytes: vec![0; width as usize * height as usize * 4],
     };
     
-    backend.texture_read_pixels(texture, &mut image.bytes);
+    backend.texture_read_pixels(*texture, &mut image.bytes);
 
     image
 }
