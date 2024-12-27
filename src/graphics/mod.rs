@@ -6,4 +6,4 @@ pub use renderer::*;
 pub mod geometry;
 
 pub mod camera;
-pub use camera::*;
+pub use camera::{Camera, Camera2D, Camera3D};
