@@ -1,5 +1,10 @@
 //! Input state management 
 
+use std::collections::{HashMap, HashSet};
+
+use glam::{vec2, Vec2};
+use miniquad::{window::screen_size, KeyCode, KeyMods, MouseButton};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TouchPhase {
     Started,
@@ -29,15 +34,15 @@ pub struct Touch {
 
 /// Convert a position in pixels to a position in the range [-1; 1].
 fn convert_to_local(pixel_pos: Vec2) -> Vec2 {
-    Vec2::new(pixel_pos.x / screen_width(), pixel_pos.y / screen_height()) * 2.0
-        - Vec2::new(1.0, 1.0)
+    let (width, height) = screen_size();
+    (vec2(pixel_pos.x / width, pixel_pos.y / height) * 2.0) - vec2(1.0, 1.0)
 }
 
-/// A simple state struct that simplifies input management. Simply feed it data,
-/// and it will update everything for you.
+/// A simple state struct that simplifies input management.
 /// 
-/// All state update methods are prefixed with `update_`
-/// All other methods are getters for the inner state.
+/// Simply feed it data and it will update everything for you:
+/// - All state update methods are prefixed with `update_`
+/// - All other methods are getters for the inner state.
 /// 
 /// Some update methods will ask for `cursor_grabbed`, which you should keep track of yourself.
 pub struct InputState {
@@ -47,7 +52,7 @@ pub struct InputState {
     mouse_down: HashSet<MouseButton>,
     mouse_pressed: HashSet<MouseButton>,
     mouse_released: HashSet<MouseButton>,
-    touches: HashMap<u64, input::Touch>,
+    touches: HashMap<u64, Touch>,
     chars_pressed_queue: Vec<char>,
     mouse_position: Vec2,
     last_mouse_position: Option<Vec2>,
@@ -76,16 +81,6 @@ impl InputState {
         }
     }
 
-    /// Change this flag to false/true. 
-    pub fn set_simulate_mouse_with_touch(&mut self, to: bool) {
-        self.simulate_mouse_with_touch = to;
-    }
-
-    /// Check whether the state simulates mouse with touch
-    pub fn is_simulating_mouse_with_touch(&self) -> bool {
-        self.simulate_mouse_with_touch
-    }
-
     /// Since we don't want to use the same information throughout multiple frames,
     /// we need to reset it. Call this at the end of each frame
     pub fn post_frame_cleanup(&mut self) {
@@ -94,7 +89,7 @@ impl InputState {
         self.keys_released.clear();
         self.mouse_pressed.clear();
         self.mouse_released.clear();
-        self.last_mouse_position = Some(crate::prelude::mouse_position_local());
+        self.last_mouse_position = Some(self.mouse_position_local());
 
         self.touches.retain(|_, touch| {
             touch.phase != TouchPhase::Ended && touch.phase != TouchPhase::Cancelled
@@ -142,7 +137,7 @@ impl InputState {
     pub fn update_touch_event(&mut self, phase: TouchPhase, id: u64, x: f32, y: f32, cursor_grabbed: bool) {
         self.touches.insert(
             id,
-            input::Touch {
+            Touch {
                 id,
                 phase: phase.into(),
                 position: Vec2::new(x, y),
@@ -164,18 +159,18 @@ impl InputState {
         }
     }
 
-    pub fn update_char_event(&mut self, character: char, modifiers: KeyMods, repeat: bool) {
+    pub fn update_char_event(&mut self, character: char, _mods: KeyMods, _rep: bool) {
         self.chars_pressed_queue.push(character);
     }
 
-    pub fn update_key_down_event(&mut self, keycode: KeyCode, modifiers: KeyMods, repeat: bool) {
+    pub fn update_key_down_event(&mut self, keycode: KeyCode, _mods: KeyMods, repeat: bool) {
         self.keys_down.insert(keycode);
         if repeat == false {
             self.keys_pressed.insert(keycode);
         }
     }
 
-    pub fn update_key_up_event(&mut self, keycode: KeyCode, modifiers: KeyMods) {
+    pub fn update_key_up_event(&mut self, keycode: KeyCode, _mods: KeyMods) {
         self.keys_down.remove(&keycode);
         self.keys_released.insert(keycode);
     }
@@ -197,10 +192,8 @@ impl InputState {
 
     /// Returns the difference between the current mouse position and the mouse position on the previous frame.
     pub fn mouse_delta_position(&self) -> Vec2 {
-        let context = get_context();
-
-        let current_position = mouse_position_local();
-        let last_position = context.last_mouse_position.unwrap_or(current_position);
+        let current_position = self.mouse_position_local();
+        let last_position = self.last_mouse_position.unwrap_or(current_position);
 
         // Calculate the delta
         last_position - current_position
@@ -258,18 +251,16 @@ impl InputState {
         self.keys_pressed.iter().next().cloned()
     }
 
-    /// Attention: Clones the inner HashSet!
     pub fn get_keys_pressed(&self) -> &HashSet<KeyCode> {
-        self.keys_pressed
+        &self.keys_pressed
     }
 
-    /// Attention: Clones the inner HashSet!
     pub fn get_keys_down(&self) -> &HashSet<KeyCode> {
-        self.keys_down
+        &self.keys_down
     }
 
     pub fn get_keys_released(&self) -> &HashSet<KeyCode> {
-        self.keys_released
+        &self.keys_released
     }
 
     /// Clear the pressed char queue. I'm not sure when it's useful, but I'll keep it for now
@@ -278,17 +269,17 @@ impl InputState {
     }
 
     /// Detect if the button is being pressed
-    pub fn is_mouse_button_down(&self, btn: MouseButton) -> bool {
-        self.mouse_down.contains(&btn)
+    pub fn is_mouse_button_down(&self, btn: &MouseButton) -> bool {
+        self.mouse_down.contains(btn)
     }
 
     /// Detect if the button has been pressed once
-    pub fn is_mouse_button_pressed(&self, btn: MouseButton) -> bool {
-        self.mouse_pressed.contains(&btn)
+    pub fn is_mouse_button_pressed(&self, btn: &MouseButton) -> bool {
+        self.mouse_pressed.contains(btn)
     }
 
     /// Detect if the button has been released this frame
-    pub fn is_mouse_button_released(&self, btn: MouseButton) -> bool {
-        self.mouse_released.contains(&btn)
+    pub fn is_mouse_button_released(&self, btn: &MouseButton) -> bool {
+        self.mouse_released.contains(btn)
     }
 }
