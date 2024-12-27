@@ -432,10 +432,10 @@ where V: AsVertex {
             shader_meta.images.push(texture.clone());
         }
 
-        let source = match shader {
-            ShaderSource::Glsl { fragment, .. } => fragment,
-            ShaderSource::Msl { program } => program,
-        };
+        // let source = match shader {
+        //     ShaderSource::Glsl { fragment, .. } => fragment,
+        //     ShaderSource::Msl { program } => program,
+        // };
 
         let shader = ctx.new_shader(shader, shader_meta)?;
 
