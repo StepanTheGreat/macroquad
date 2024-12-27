@@ -169,15 +169,16 @@ pub unsafe fn texture_grab_screen(
 /// This operation can be expensive.
 pub fn get_texture_data(
     backend: &mut dyn RenderingBackend,
-    texture: 
+    texture: &TextureId
 ) -> Image {
-    let backend = get_quad_context();
-    let (width, height) = backend.texture_size(self.raw_miniquad_id());
+    let (width, height) = backend.texture_size(texture);
     let mut image = Image {
         width: width as _,
         height: height as _,
         bytes: vec![0; width as usize * height as usize * 4],
     };
-    backend.texture_read_pixels(self.raw_miniquad_id(), &mut image.bytes);
+    
+    backend.texture_read_pixels(texture, &mut image.bytes);
+
     image
 }
