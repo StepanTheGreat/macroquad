@@ -612,8 +612,9 @@ where V: AsVertex {
         self.state.depth_test_enable = enable;
     }
 
-    pub fn with_texture(&mut self, texture: Option<TextureId>) {
-        self.state.texture = texture;
+    pub fn with_texture(&mut self, texture: Option<&TextureId>) {
+        // If you ask me why... Idk
+        self.state.texture = texture.copied();
     }
 
     pub fn with_scissor(&mut self, clip: Option<(i32, i32, i32, i32)>) {
@@ -711,7 +712,7 @@ where V: AsVertex {
                     self.state.render_pass,
                 ));
             }
-            
+
             self.draw_calls[self.draw_calls_count].texture = self.state.texture;
             self.draw_calls[self.draw_calls_count].uniforms = uniforms;
             self.draw_calls[self.draw_calls_count].vertices_count = 0;
