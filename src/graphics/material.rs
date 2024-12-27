@@ -1,22 +1,22 @@
 //! Custom materials - shaders, uniforms.
 
-use crate::{get_context, graphics::GlPipeline, texture::Texture2D, tobytes::ToBytes, Error};
-use miniquad::{PipelineParams, UniformDesc};
-use std::sync::Arc;
+use crate::{graphics::GlPipeline, tobytes::ToBytes, Error};
+use miniquad::{PipelineParams, RenderingBackend, TextureId, UniformDesc};
 
-#[derive(PartialEq)]
-struct GlPipelineGuarded(GlPipeline);
+use super::Renderer;
 
-impl Drop for GlPipelineGuarded {
-    fn drop(&mut self) {
-        get_context().gl.delete_pipeline(self.0);
-    }
-}
-
-/// Material instance loaded on GPU.
+/// A material with custom shaders and uniforms, textures and pipeline params
+/// 
+/// ### Warning
+/// This is essentially an abstraction of [miniquad::Pipeline] for a specific renderer.
+/// 2 things can go wrong however:
+/// 1. This material provides will not clear itself after, so this memory management is after you
+/// (A renderer only has 32 possible pipeline slots, not that many)
+/// 2. A material is inherently bound to a specific renderer from which you created it. That means that if you
+/// try to use a material on a renderer that doesn't have it - it will panic.  
 #[derive(Clone, PartialEq)]
 pub struct Material {
-    pipeline: Arc<GlPipelineGuarded>,
+    pipeline: GlPipeline,
 }
 
 impl std::fmt::Debug for Material {
@@ -26,21 +26,25 @@ impl std::fmt::Debug for Material {
 }
 
 impl Material {
+    fn from_pipeline(pipeline: GlPipeline) -> Self {
+        Self {
+            pipeline
+        }
+    }
+
     /// Set GPU uniform value for this material.
     /// "name" should be from "uniforms" list used for material creation.
     /// Otherwise uniform value would be silently ignored.
-    pub fn set_uniform<T>(&self, name: &str, uniform: T) {
-        get_context().gl.set_uniform(self.pipeline.0, name, uniform);
+    pub fn set_uniform<T>(&self, renderer: &mut Renderer, name: &str, uniform: T) {
+        renderer.set_uniform(&self.pipeline, name, uniform);
     }
 
-    pub fn set_uniform_array<T: ToBytes>(&self, name: &str, uniform: &[T]) {
-        get_context()
-            .gl
-            .set_uniform_array(self.pipeline.0, name, uniform);
+    pub fn set_uniform_array<T: ToBytes>(&self, renderer: &mut Renderer, name: &str, uniform: &[T]) {
+        renderer.set_uniform_array(&self.pipeline, name, uniform);
     }
 
-    pub fn set_texture(&self, name: &str, texture: Texture2D) {
-        get_context().gl.set_texture(self.pipeline.0, name, texture);
+    pub fn set_texture(&self, renderer: &mut Renderer, name: &str, texture: &TextureId) {
+        renderer.set_texture(&self.pipeline, name, *texture);
     }
 }
 
@@ -60,37 +64,61 @@ pub struct MaterialParams {
     pub textures: Vec<String>,
 }
 
+/// Create a new material on the specified renderer, with specified shader source and material params
+/// 
+/// ### Warning
+/// 1. Materials are essentially pipelines, with no cleanup guarantees. Its your responsibility
+/// to properly clean it after use.
+/// 2. Given materials can only be used with renderers with which you created said materials.
+/// Since pipelines (from said materials) are renderer bound, using them on another renderer will cause a panic
 pub fn load_material(
+    backend: &mut dyn RenderingBackend,
+    renderer: &mut Renderer,
     shader: crate::ShaderSource,
     params: MaterialParams,
 ) -> Result<Material, Error> {
-    let context = &mut get_context();
 
-    let pipeline = context.gl.make_pipeline(
-        &mut *context.quad_context,
+    let pipeline = renderer.make_pipeline(
+        backend,
         shader,
         params.pipeline_params,
         params.uniforms,
         params.textures,
     )?;
 
-    Ok(Material {
-        pipeline: Arc::new(GlPipelineGuarded(pipeline)),
-    })
+    Ok(Material::from_pipeline(pipeline))
 }
 
 /// All following macroquad rendering calls will use the given material.
-pub fn gl_use_material(material: &Material) {
-    get_context().gl.pipeline(Some(material.pipeline.0));
+/// 
+/// ### Attention
+/// This function will panic if you use it on a renderer that doesn't have said material.
+/// To check: use [has_material]
+pub fn use_material(renderer: &mut Renderer, material: &Material) {
+    renderer.with_pipeline(Some(material.pipeline));
 }
 
-/// Use default macroquad material.
-pub fn gl_use_default_material() {
-    get_context().gl.pipeline(None);
+/// Check whether the provided renderer contains the specified material.
+/// 
+/// It's highly important to only use materials given by the same renderers, to avoid
+/// panics
+pub fn has_material(renderer: &mut Renderer, material: &Material) -> bool {
+    renderer.has_pipeline(&material.pipeline)
 }
 
-#[doc(hidden)]
-pub mod shaders {
+/// Use default renderer material.
+/// 
+/// This is essentially:
+/// ```
+/// renderer.with_pipeline(None);
+/// ```
+pub fn use_default_material(renderer: &mut Renderer) {
+    renderer.with_pipeline(None);
+}
+
+
+// I'm leaving this for now, could be a separate crate feature in the future.
+mod preprocessor {
     type IncludeFilename = String;
     type IncludeContent = String;
 

@@ -279,13 +279,13 @@ impl PipelineStorage {
 
     fn make_pipeline<V: AsVertex>(
         &mut self,
-        ctx: &mut dyn RenderingBackend,
+        backend: &mut dyn RenderingBackend,
         shader: ShaderId,
         params: PipelineParams,
         mut uniforms: Vec<UniformDesc>,
         textures: Vec<String>,
     ) -> GlPipeline {
-        let pipeline = ctx.new_pipeline(
+        let pipeline = backend.new_pipeline(
             &[BufferLayout::default()],
             &(V::attributes()),
             shader,
@@ -333,7 +333,8 @@ impl PipelineStorage {
         GlPipeline(id)
     }
 
-    const fn get(&self, draw_mode: DrawMode, depth_enabled: bool) -> GlPipeline {
+    /// Get the default pipeline by draw mode and depth flag
+    const fn get_default_pipeline_by(&self, draw_mode: DrawMode, depth_enabled: bool) -> GlPipeline {
         match (draw_mode, depth_enabled) {
             (DrawMode::Triangles, false) => Self::TRIANGLES_PIPELINE,
             (DrawMode::Triangles, true) => Self::TRIANGLES_DEPTH_PIPELINE,
@@ -342,9 +343,15 @@ impl PipelineStorage {
         }
     }
 
-    fn get_quad_pipeline_mut(&mut self, pip: GlPipeline) -> &mut PipelineExt {
-        self.pipelines[pip.0].as_mut().unwrap()
+    /// Find a pipeline by pipeline ID ([GlPipeline])
+    fn get_pipeline_mut(&mut self, pip: &GlPipeline) -> Option<&mut PipelineExt> {
+        self.pipelines[pip.0].as_mut()
     }
+
+    /// Check whether this storage has the specified pipeline
+    fn has_pipeline(&self, pip: &GlPipeline) -> bool {
+        self.pipelines[pip.0].is_some()
+    } 
 
     fn delete_pipeline(&mut self, pip: GlPipeline) {
         self.pipelines[pip.0] = None;
@@ -507,7 +514,9 @@ where V: AsVertex {
             .iter_mut()
             .zip(self.draw_calls_bindings.iter_mut())
         {
-            let pipeline = self.pipelines.get_quad_pipeline_mut(dc.pipeline);
+            // ! We unwrap here, since a draw call can't possibly be added with a pipeline that isn't available
+            // ! in the storage
+            let pipeline = self.pipelines.get_pipeline_mut(&dc.pipeline).unwrap();
 
             let (width, height) = if let Some(render_pass) = dc.render_pass {
                 let render_texture = ctx.render_pass_texture(render_pass);
@@ -651,6 +660,10 @@ where V: AsVertex {
             return;
         }
 
+        if let Some(ref pip) = pipeline {
+            assert!(self.has_pipeline(pip), "The provided pipeline isn't present in the renderer")
+        }
+
         self.state.break_batching = true;
         self.state.pipeline = pipeline;
     }
@@ -670,7 +683,7 @@ where V: AsVertex {
 
         let pip = self.state.pipeline.unwrap_or(
             self.pipelines
-                .get(self.state.draw_mode, self.state.depth_test_enable),
+                .get_default_pipeline_by(self.state.draw_mode, self.state.depth_test_enable),
         );
 
         let previous_dc_ix = if self.draw_calls_count == 0 {
@@ -696,7 +709,8 @@ where V: AsVertex {
             let uniforms = self.state.pipeline.map_or(None, |pipeline| {
                 Some(
                     self.pipelines
-                        .get_quad_pipeline_mut(pipeline)
+                        .get_pipeline_mut(&pipeline)
+                        .unwrap()
                         .uniforms_data
                         .clone(),
                 )
@@ -746,29 +760,40 @@ where V: AsVertex {
         self.pipelines.delete_pipeline(pipeline);
     }
 
-    pub fn set_uniform<T>(&mut self, pipeline: GlPipeline, name: &str, uniform: T) {
+    /// Check whether this renderer has this specific pipeline
+    pub fn has_pipeline(&self, pipeline: &GlPipeline) -> bool {
+        self.pipelines.has_pipeline(pipeline)
+    }
+
+    pub fn set_uniform<T>(&mut self, pipeline: &GlPipeline, name: &str, uniform: T) {
         self.state.break_batching = true;
 
         self.pipelines
-            .get_quad_pipeline_mut(pipeline)
+            .get_pipeline_mut(pipeline)
+            .expect("The provided pipeline has to be present in the renderer")
             .set_uniform(name, uniform);
     }
 
     pub fn set_uniform_array<T: ToBytes>(
         &mut self,
-        pipeline: GlPipeline,
+        pipeline: &GlPipeline,
         name: &str,
         uniform: &[T],
     ) {
         self.state.break_batching = true;
 
         self.pipelines
-            .get_quad_pipeline_mut(pipeline)
+            .get_pipeline_mut(pipeline)
+            .expect("The provided pipeline has to be present in the renderer")
             .set_uniform_array(name, uniform);
     }
 
-    pub fn set_texture(&mut self, pipeline: GlPipeline, name: &str, texture: TextureId) {
-        let pipeline = self.pipelines.get_quad_pipeline_mut(pipeline);
+    /// Set a texture under specified name for the provided pipeline
+    pub fn set_texture(&mut self, pipeline: &GlPipeline, name: &str, texture: TextureId) {
+        let pipeline = self.pipelines
+            .get_pipeline_mut(pipeline)
+            .expect("The provided pipeline has to be present in the renderer");
+
         pipeline
             .textures
             .iter()
