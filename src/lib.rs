@@ -45,10 +45,12 @@ use std::pin::Pin;
 mod graphics;
 mod tobytes;
 
+pub mod audio;
 pub mod utils;
 pub mod color;
 pub mod input;
 pub mod text;
+pub mod draw;
 pub mod texture;
 pub mod fs;
 #[cfg(feature="ui")]
@@ -57,7 +59,7 @@ pub mod window;
 
 pub mod prelude;
 
-pub mod telemetry;
+// pub mod telemetry;
 
 mod error;
 
@@ -81,7 +83,6 @@ pub use miniquad;
 use crate::{
     color::{colors::*, Color},
     graphics::Renderer,
-    texture::TextureHandle
 };
 
 #[cfg(feature="ui")]
