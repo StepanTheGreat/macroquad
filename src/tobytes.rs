@@ -1,4 +1,4 @@
-use crate::math::{Mat4, Vec2, Vec3, Vec4};
+use glam::{Mat4, Vec2, Vec3, Vec4};
 
 /// Does exactly what it sounds like - converts a type to a slice of bytes.
 /// 

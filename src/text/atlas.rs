@@ -1,4 +1,5 @@
-use crate::{get_context, get_quad_context, math::Rect, texture::Image, Color};
+use crate::{texture::Image, Color};
+use crate::utils::Rect;
 
 use std::collections::HashMap;
 
@@ -12,7 +13,9 @@ pub enum SpriteKey {
     Texture(miniquad::TextureId),
     Id(u64),
 }
-pub struct Atlas {
+
+/// A combination of textures in a single, large texture.
+pub struct TextureAtlas {
     texture: miniquad::TextureId,
     image: Image,
     pub sprites: HashMap<SpriteKey, Sprite>,

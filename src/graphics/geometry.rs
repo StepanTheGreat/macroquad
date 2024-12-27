@@ -1,10 +1,10 @@
 //! 3D shapes and models, loading 3d models from files, drawing 3D primitives.
 
-use crate::{color::Color, get_context};
+use crate::color::Color;
 
 use crate::texture::Texture2D;
 use glam::{vec2, vec3, vec4, Quat, Vec2, Vec3, Vec4};
-use miniquad::{VertexAttribute, VertexFormat};
+use miniquad::{TextureId, VertexAttribute, VertexFormat};
 
 use super::{Renderer, DrawMode};
 
@@ -62,21 +62,31 @@ unsafe impl AsVertex for Vertex {
     }
 }
 
+struct Test {
+
+}
+
 pub struct Mesh<V>
 where V: AsVertex {
     pub vertices: Vec<V>,
     pub indices: Vec<u16>,
-    pub texture: Option<Texture2D>,
+    pub texture: Option<TextureId>,
 }
 
-pub fn draw_mesh<V: AsVertex>(gl: &mut DrawCallBatcher<V>, mesh: &Mesh<V>) {
-    gl.texture(mesh.texture.as_ref());
-    gl.draw_mode(DrawMode::Triangles);
-    gl.geometry(&mesh.vertices[..], &mesh.indices[..]);
+/// Draw a mesh with an arbitrary Vertex
+/// 
+/// Compared to other functions (from macroquad), this one works on any Vertex that implements [AsVertex],
+/// so if you would like to draw your own shapes - you can simply construct a custom [Mesh] and call this 
+/// function.
+/// 
+/// Or you can simply do it directly using [Renderer]. You're free on this one
+pub fn draw_mesh<V: AsVertex>(renderer: &mut Renderer<V>, mesh: &Mesh<V>) {
+    renderer.with_texture(mesh.texture.as_ref());
+    renderer.with_draw_mode(DrawMode::Triangles);
+    renderer.push_geometry(&mesh.vertices[..], &mesh.indices[..]);
 }
 
-fn draw_quad(vertices: [Vertex; 4]) {
-    let context = get_context();
+fn draw_quad(gl: &mut Renderer<V>, vertices: [Vertex; 4]) {
     let indices = [0, 1, 2, 0, 2, 3];
     context.gl.draw_mode(DrawMode::Triangles);
     context.gl.geometry(&vertices, &indices);

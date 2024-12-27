@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use crate::{
     color::Color,
-    get_context, get_quad_context,
     texture::{Image, TextureHandle},
     Error,
 };

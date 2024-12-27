@@ -1,24 +1,22 @@
-use crate::{get_context, get_quad_context, time::get_time};
-
 use std::collections::HashMap;
 
 static mut PROFILER: Option<Profiler> = None;
 
-fn get_profiler() -> &'static mut Profiler {
-    unsafe {
-        PROFILER.get_or_insert_with(|| Profiler {
-            frame: Frame::new(),
-            queries: HashMap::new(),
-            active_query: None,
-            prev_frame: Frame::new(),
-            enabled: false,
-            enable_request: None,
-            capture_request: false,
-            capture: false,
-            drawcalls: vec![],
-            strings: vec![],
-        })
-    }
+/// Get the current global profiler. This function is unsafe, because it should be called on the main
+/// thread.
+unsafe fn get_profiler() -> &'static mut Profiler {
+    PROFILER.get_or_insert_with(|| Profiler {
+        frame: Frame::new(),
+        queries: HashMap::new(),
+        active_query: None,
+        prev_frame: Frame::new(),
+        enabled: false,
+        enable_request: None,
+        capture_request: false,
+        capture: false,
+        drawcalls: vec![],
+        strings: vec![],
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -64,11 +62,13 @@ impl Drop for ZoneGuard {
     }
 }
 
-pub fn enable() {
+/// Enable the profiler
+pub unsafe fn enable() {
     get_profiler().enable_request = Some(true);
 }
 
-pub fn disable() {
+/// Disable the profiler
+pub unsafe fn disable() {
     get_profiler().enable_request = Some(false);
 }
 

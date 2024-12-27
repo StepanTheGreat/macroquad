@@ -4,7 +4,7 @@ use miniquad::*;
 
 pub use miniquad::{FilterMode, TextureId as MiniquadTexture, UniformDesc};
 
-use crate::{color::Color, logging::warn, telemetry, texture::Texture2D, tobytes::ToBytes, Error};
+use crate::{color::Color, logging::warn, telemetry, tobytes::ToBytes, Error};
 
 use std::collections::BTreeMap;
 
@@ -65,195 +65,7 @@ impl DrawCall {
     }
 }
 
-struct MagicSnapshotter {
-    pipeline: Pipeline,
-    bindings: Bindings,
-    pass: Option<RenderPass>,
-
-    screen_texture: Option<miniquad::TextureId>,
-}
-
-mod snapshotter_shader {
-    use miniquad::{ShaderMeta, UniformBlockLayout};
-
-    pub const VERTEX: &str = r#"#version 100
-    attribute vec2 position;
-    attribute vec2 texcoord;
-
-    varying lowp vec2 uv;
-
-    void main() {
-        gl_Position = vec4(position, 0, 1);
-        uv = texcoord;
-    }"#;
-
-    pub const FRAGMENT: &str = r#"#version 100
-    varying lowp vec2 uv;
-
-    uniform sampler2D Texture;
-
-    void main() {
-        gl_FragColor = texture2D(Texture, uv);
-    }"#;
-
-    pub const METAL: &str = r#"#include <metal_stdlib>
-    using namespace metal;
-
-    struct Vertex
-    {
-        float2 position    [[attribute(0)]];
-        float2 texcoord    [[attribute(1)]];
-    };
-
-    struct RasterizerData
-    {
-        float4 position [[position]];
-        float2 uv [[user(locn1)]];
-    };
-
-    vertex RasterizerData vertexShader(Vertex v [[stage_in]])
-    {
-        RasterizerData out;
-
-        out.position = float4(v.position, 0, 1);
-        out.uv = v.texcoord;
-
-        return out;
-    }
-
-    fragment float4 fragmentShader(RasterizerData in [[stage_in]], texture2d<float> tex [[texture(0)]], sampler texSmplr [[sampler(0)]])
-    {
-        return tex.sample(texSmplr, in.uv);
-    }"#;
-
-    pub fn meta() -> ShaderMeta {
-        ShaderMeta {
-            images: vec!["Texture".to_string()],
-            uniforms: UniformBlockLayout { uniforms: vec![] },
-        }
-    }
-}
-
-impl MagicSnapshotter {
-    fn new(ctx: &mut dyn RenderingBackend) -> MagicSnapshotter {
-        let shader = ctx
-            .new_shader(
-                match ctx.info().backend {
-                    Backend::OpenGl => ShaderSource::Glsl {
-                        vertex: snapshotter_shader::VERTEX,
-                        fragment: snapshotter_shader::FRAGMENT,
-                    },
-                    Backend::Metal => ShaderSource::Msl {
-                        program: snapshotter_shader::METAL,
-                    },
-                },
-                snapshotter_shader::meta(),
-            )
-            .unwrap_or_else(|e| panic!("Failed to load shader: {}", e));
-
-        let pipeline = ctx.new_pipeline(
-            &[BufferLayout::default()],
-            &[
-                VertexAttribute::new("position", VertexFormat::Float2),
-                VertexAttribute::new("texcoord", VertexFormat::Float2),
-            ],
-            shader,
-            PipelineParams::default(),
-        );
-
-        #[rustfmt::skip]
-        let vertices: [f32; 16] = [
-             -1.0, -1.0, 0., 0.,
-             1.0, -1.0, 1., 0. ,
-             1.0,  1.0, 1., 1. ,
-            -1.0,  1.0, 0., 1. ,
-        ];
-        let vertex_buffer = ctx.new_buffer(
-            BufferType::VertexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&vertices),
-        );
-
-        let indices: [u16; 6] = [0, 1, 2, 0, 2, 3];
-        let index_buffer = ctx.new_buffer(
-            BufferType::IndexBuffer,
-            BufferUsage::Immutable,
-            BufferSource::slice(&indices),
-        );
-
-        let bindings = Bindings {
-            vertex_buffers: vec![vertex_buffer],
-            index_buffer,
-            images: vec![ctx.new_texture_from_rgba8(1, 1, &[0, 0, 0, 0])],
-        };
-
-        MagicSnapshotter {
-            pipeline,
-            bindings,
-            pass: None,
-            screen_texture: None,
-        }
-    }
-
-    fn snapshot(&mut self, ctx: &mut dyn RenderingBackend, camera_render_pass: Option<RenderPass>) {
-        if let Some(camera_render_pass) = camera_render_pass {
-            let texture = ctx.render_pass_texture(camera_render_pass);
-            if self.pass.is_none() {
-                let miniquad::TextureParams {
-                    width,
-                    height,
-                    format,
-                    ..
-                } = ctx.texture_params(texture);
-                let color_img = ctx.new_render_texture(TextureParams {
-                    width,
-                    height,
-                    format,
-                    ..Default::default()
-                });
-
-                self.pass = Some(ctx.new_render_pass(color_img, None));
-                self.screen_texture = Some(color_img);
-            }
-
-            if self.bindings.images.len() == 0 {
-                self.bindings.images.push(texture);
-            } else {
-                self.bindings.images[0] = texture;
-            }
-            ctx.begin_pass(
-                Some(self.pass.unwrap()),
-                PassAction::clear_color(1.0, 0.0, 1.0, 1.),
-            );
-            ctx.apply_pipeline(&self.pipeline);
-            ctx.apply_bindings(&self.bindings);
-            ctx.draw(0, 6, 1);
-            ctx.end_render_pass();
-        } else {
-            let (screen_width, screen_height) = miniquad::window::screen_size();
-            if self.screen_texture.is_none()
-                || self
-                    .screen_texture
-                    .map(|t| {
-                        let (w, h) = ctx.texture_size(t);
-                        w != screen_width as _ || h != screen_height as _
-                    })
-                    .unwrap_or(false)
-            {
-                self.screen_texture = Some(ctx.new_render_texture(TextureParams {
-                    width: screen_width as _,
-                    height: screen_height as _,
-                    ..Default::default()
-                }));
-            }
-
-            let texture = self.screen_texture.unwrap();
-            Texture2D::unmanaged(texture).grab_screen();
-        }
-    }
-}
-
-struct GlState {
+struct RendererState {
     texture: Option<miniquad::TextureId>,
     draw_mode: DrawMode,
     clip: Option<(i32, i32, i32, i32)>,
@@ -263,13 +75,12 @@ struct GlState {
     depth_test_enable: bool,
 
     break_batching: bool,
-    snapshotter: MagicSnapshotter,
 
     render_pass: Option<RenderPass>,
     capture: bool,
 }
 
-impl GlState {
+impl RendererState {
     fn model(&self) -> glam::Mat4 {
         *self.model_stack.last().unwrap()
     }
@@ -286,7 +97,6 @@ struct Uniform {
 #[derive(Clone)]
 struct PipelineExt {
     pipeline: miniquad::Pipeline,
-    wants_screen_texture: bool,
     uniforms: Vec<Uniform>,
     uniforms_data: Vec<u8>,
     textures: Vec<String>,
@@ -419,7 +229,6 @@ impl PipelineStorage {
                 primitive_type: PrimitiveType::Triangles,
                 ..params
             },
-            false,
             vec![],
             vec![],
         );
@@ -432,7 +241,6 @@ impl PipelineStorage {
                 primitive_type: PrimitiveType::Lines,
                 ..params
             },
-            false,
             vec![],
             vec![],
         );
@@ -447,7 +255,6 @@ impl PipelineStorage {
                 primitive_type: PrimitiveType::Triangles,
                 ..params
             },
-            false,
             vec![],
             vec![],
         );
@@ -462,7 +269,6 @@ impl PipelineStorage {
                 primitive_type: PrimitiveType::Lines,
                 ..params
             },
-            false,
             vec![],
             vec![],
         );
@@ -476,7 +282,6 @@ impl PipelineStorage {
         ctx: &mut dyn RenderingBackend,
         shader: ShaderId,
         params: PipelineParams,
-        wants_screen_texture: bool,
         mut uniforms: Vec<UniformDesc>,
         textures: Vec<String>,
     ) -> GlPipeline {
@@ -518,7 +323,6 @@ impl PipelineStorage {
 
         self.pipelines[id] = Some(PipelineExt {
             pipeline,
-            wants_screen_texture,
             uniforms,
             uniforms_data: vec![0; max_offset],
             textures,
@@ -558,7 +362,7 @@ where V: AsVertex {
     draw_calls: Vec<DrawCall>,
     draw_calls_bindings: Vec<Bindings>,
     draw_calls_count: usize,
-    state: GlState,
+    state: RendererState,
     start_time: f64,
 
     pub(crate) white_texture: miniquad::TextureId,
@@ -580,7 +384,7 @@ where V: AsVertex {
 
         Self {
             pipelines: PipelineStorage::new::<V>(ctx),
-            state: GlState {
+            state: RendererState {
                 clip: None,
                 viewport: None,
                 texture: None,
@@ -589,7 +393,6 @@ where V: AsVertex {
                 pipeline: None,
                 break_batching: false,
                 depth_test_enable: false,
-                snapshotter: MagicSnapshotter::new(ctx),
                 render_pass: None,
                 capture: false,
             },
@@ -626,11 +429,6 @@ where V: AsVertex {
                     "you can't use name `Texture` for your texture. This name is reserved for the texture that will be drawn with that material"
                 );
             }
-            if texture == "_ScreenTexture" {
-                panic!(
-                    "you can't use name `_ScreenTexture` for your texture in shaders. This name is reserved for screen texture"
-                );
-            }
             shader_meta.images.push(texture.clone());
         }
 
@@ -638,13 +436,13 @@ where V: AsVertex {
             ShaderSource::Glsl { fragment, .. } => fragment,
             ShaderSource::Msl { program } => program,
         };
-        let wants_screen_texture = source.contains("_ScreenTexture");
+
         let shader = ctx.new_shader(shader, shader_meta)?;
+
         Ok(self.pipelines.make_pipeline::<V>(
             ctx,
             shader,
             params,
-            wants_screen_texture,
             uniforms,
             textures,
         ))
@@ -719,10 +517,6 @@ where V: AsVertex {
                 (screen_width as u32, screen_height as u32)
             };
 
-            if pipeline.wants_screen_texture {
-                self.state.snapshotter.snapshot(ctx, dc.render_pass);
-            }
-
             if let Some(render_pass) = dc.render_pass {
                 ctx.begin_pass(Some(render_pass), PassAction::Nothing);
             } else {
@@ -745,14 +539,9 @@ where V: AsVertex {
             );
 
             bindings.images[0] = dc.texture.unwrap_or(white_texture);
-            bindings.images[1] = self
-                .state
-                .snapshotter
-                .screen_texture
-                .unwrap_or(white_texture);
             bindings
                 .images
-                .resize(2 + pipeline.textures.len(), white_texture);
+                .resize(1 + pipeline.textures.len(), white_texture);
 
             for (pos, name) in pipeline.textures.iter().enumerate() {
                 if let Some(texture) = pipeline.textures_data.get(name).copied() {
@@ -803,16 +592,8 @@ where V: AsVertex {
         self.batch_vertex_buffer.clear();
     }
 
-    pub(crate) fn capture(&mut self, capture: bool) {
+    pub(crate) fn with_capture(&mut self, capture: bool) {
         self.state.capture = capture;
-    }
-
-    pub fn get_projection_matrix(&self) -> glam::Mat4 {
-        // get_projection_matrix is a way plugins used to get macroquad's current projection
-        // back in the days when projection was a part of static batcher
-        // now it is not, so here we go with this hack
-
-        crate::get_context().projection_matrix()
     }
 
     pub const fn get_active_render_pass(&self) -> Option<RenderPass> {
@@ -823,24 +604,23 @@ where V: AsVertex {
         self.state.depth_test_enable
     }
 
-    pub fn render_pass(&mut self, render_pass: Option<RenderPass>) {
+    pub fn with_render_pass(&mut self, render_pass: Option<RenderPass>) {
         self.state.render_pass = render_pass;
     }
 
-    pub fn depth_test(&mut self, enable: bool) {
+    pub fn with_depth_test(&mut self, enable: bool) {
         self.state.depth_test_enable = enable;
     }
 
-    pub fn texture(&mut self, texture: Option<&Texture2D>) {
-        let ctx = crate::get_context();
-        self.state.texture = texture.map(|t| ctx.raw_miniquad_id(&t.texture));
+    pub fn with_texture(&mut self, texture: Option<TextureId>) {
+        self.state.texture = texture;
     }
 
-    pub fn scissor(&mut self, clip: Option<(i32, i32, i32, i32)>) {
+    pub fn with_scissor(&mut self, clip: Option<(i32, i32, i32, i32)>) {
         self.state.clip = clip;
     }
 
-    pub fn viewport(&mut self, viewport: Option<(i32, i32, i32, i32)>) {
+    pub fn with_viewport(&mut self, viewport: Option<(i32, i32, i32, i32)>) {
         self.state.viewport = viewport;
     }
 
@@ -865,7 +645,7 @@ where V: AsVertex {
         }
     }
 
-    pub fn pipeline(&mut self, pipeline: Option<GlPipeline>) {
+    pub fn with_pipeline(&mut self, pipeline: Option<GlPipeline>) {
         if self.state.pipeline == pipeline {
             return;
         }
@@ -874,12 +654,12 @@ where V: AsVertex {
         self.state.pipeline = pipeline;
     }
 
-    pub fn draw_mode(&mut self, mode: DrawMode) {
+    pub fn with_draw_mode(&mut self, mode: DrawMode) {
         self.state.draw_mode = mode;
     }
 
     /// TODO: Document this 
-    pub fn geometry(&mut self, vertices: &[V], indices: &[u16]) {
+    pub fn push_geometry(&mut self, vertices: &[V], indices: &[u16]) {
         if vertices.len() >= self.max_vertices || indices.len() >= self.max_indices {
             warn!("geometry() exceeded max drawcall size, clamping");
         }
@@ -931,6 +711,7 @@ where V: AsVertex {
                     self.state.render_pass,
                 ));
             }
+            
             self.draw_calls[self.draw_calls_count].texture = self.state.texture;
             self.draw_calls[self.draw_calls_count].uniforms = uniforms;
             self.draw_calls[self.draw_calls_count].vertices_count = 0;
@@ -947,6 +728,7 @@ where V: AsVertex {
             self.draw_calls_count += 1;
             self.state.break_batching = false;
         };
+
         let dc = &mut self.draw_calls[self.draw_calls_count - 1];
 
         self.batch_vertex_buffer.extend(vertices);
@@ -970,6 +752,7 @@ where V: AsVertex {
             .get_quad_pipeline_mut(pipeline)
             .set_uniform(name, uniform);
     }
+
     pub fn set_uniform_array<T: ToBytes>(
         &mut self,
         pipeline: GlPipeline,
@@ -983,7 +766,7 @@ where V: AsVertex {
             .set_uniform_array(name, uniform);
     }
 
-    pub fn set_texture(&mut self, pipeline: GlPipeline, name: &str, texture: Texture2D) {
+    pub fn set_texture(&mut self, pipeline: GlPipeline, name: &str, texture: TextureId) {
         let pipeline = self.pipelines.get_quad_pipeline_mut(pipeline);
         pipeline
             .textures
@@ -991,21 +774,24 @@ where V: AsVertex {
             .find(|x| *x == name)
             .unwrap_or_else(|| {
                 panic!(
-                    "can't find texture with name '{}', there is only this names: {:?}",
+                    "can't find texture with name '{}', there are only these names: {:?}",
                     name, pipeline.textures
                 )
             });
-        let quad_texture = texture.raw_miniquad_id();
         *pipeline
             .textures_data
             .entry(name.to_owned())
-            .or_insert(quad_texture) = quad_texture;
+            .or_insert(texture) = texture;
     }
 
-
+    /// Update the maximum amount of vertices and indices this renderer can accept per draw call.
+    /// 
+    /// ### Attention
+    /// This is an expensive operation, as it also changes every existing draw call in the renderer,
+    /// removes all drawcalls, and then finally recreates all vertex/index buffers bindings. 
     pub fn update_drawcall_capacity(
         &mut self,
-        ctx: &mut dyn miniquad::RenderingBackend,
+        backend: &mut dyn miniquad::RenderingBackend,
         max_vertices: usize,
         max_indices: usize,
     ) {
@@ -1019,24 +805,28 @@ where V: AsVertex {
         }
 
         for binding in &mut self.draw_calls_bindings {
-            ctx.delete_buffer(binding.index_buffer);
+            backend.delete_buffer(binding.index_buffer);
+
             for vertex_buffer in &binding.vertex_buffers {
-                ctx.delete_buffer(*vertex_buffer);
+                backend.delete_buffer(*vertex_buffer);
             }
-            let vertex_buffer = ctx.new_buffer(
+
+            let vertex_buffer = backend.new_buffer(
                 BufferType::VertexBuffer,
                 BufferUsage::Stream,
                 BufferSource::empty::<V>(self.max_vertices),
             );
-            let index_buffer = ctx.new_buffer(
+
+            let index_buffer = backend.new_buffer(
                 BufferType::IndexBuffer,
                 BufferUsage::Stream,
                 BufferSource::empty::<u16>(self.max_indices),
             );
+
             *binding = Bindings {
                 vertex_buffers: vec![vertex_buffer],
                 index_buffer,
-                images: vec![self.white_texture, self.white_texture],
+                images: vec![self.white_texture],
             };
         }
     }
@@ -1123,7 +913,7 @@ mod shader {
 
     pub fn meta() -> ShaderMeta {
         ShaderMeta {
-            images: vec!["Texture".to_string(), "_ScreenTexture".to_string()],
+            images: vec!["Texture".to_string()],
             uniforms: UniformBlockLayout {
                 uniforms: uniforms()
                     .into_iter()

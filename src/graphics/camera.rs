@@ -1,10 +1,7 @@
 //! 2D and 3D camera.
 
 use crate::{
-    get_context,
-    prelude::RenderPass,
-    texture::RenderTarget,
-    window::{screen_height, screen_width},
+    prelude::RenderPass, texture::RenderTarget, utils::Rect, window::{screen_height, screen_width}
 };
 use glam::{vec2, vec3, Mat4, Vec2, Vec3};
 
@@ -248,63 +245,5 @@ impl Camera for Camera3D {
 
     fn viewport(&self) -> Option<(i32, i32, i32, i32)> {
         self.viewport
-    }
-}
-
-/// Set active 2D or 3D camera.
-pub fn set_camera(camera: &dyn Camera) {
-    let context = get_context();
-
-    // flush previous camera draw calls
-    context.perform_render_passes();
-
-    context
-        .gl
-        .render_pass(camera.render_pass().map(|rt| rt.raw_miniquad_id()));
-
-    context.gl.viewport(camera.viewport());
-    context.gl.depth_test(camera.depth_enabled());
-    context.camera_matrix = Some(camera.matrix());
-}
-
-/// Reset default 2D camera mode.
-pub fn set_default_camera() {
-    let context = get_context();
-
-    // flush previous camera draw calls
-    context.perform_render_passes();
-
-    context.gl.render_pass(None);
-    context.gl.viewport(None);
-    context.gl.depth_test(false);
-    context.camera_matrix = None;
-}
-
-pub(crate) struct CameraState {
-    render_pass: Option<miniquad::RenderPass>,
-    depth_test: bool,
-    matrix: Option<Mat4>,
-}
-
-pub fn push_camera_state() {
-    let context = get_context();
-
-    let camera_state = CameraState {
-        render_pass: context.gl.get_active_render_pass(),
-        depth_test: context.gl.is_depth_test_enabled(),
-        matrix: context.camera_matrix,
-    };
-    context.camera_stack.push(camera_state);
-}
-
-pub fn pop_camera_state() {
-    let context = get_context();
-
-    if let Some(camera_state) = context.camera_stack.pop() {
-        context.perform_render_passes();
-
-        context.gl.render_pass(camera_state.render_pass);
-        context.gl.depth_test(camera_state.depth_test);
-        context.camera_matrix = camera_state.matrix;
     }
 }

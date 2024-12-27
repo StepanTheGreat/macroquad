@@ -40,16 +40,14 @@ use miniquad::*;
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
-use std::panic::AssertUnwindSafe;
 use std::pin::Pin;
 
 mod graphics;
 mod tobytes;
 
+pub mod utils;
 pub mod color;
 pub mod input;
-pub mod material;
-pub mod shapes;
 pub mod text;
 pub mod texture;
 pub mod fs;
@@ -119,12 +117,12 @@ struct Context {
 
     input_events: Vec<Vec<MiniquadInputEvent>>,
 
-    gl: DrawCallBatcher,
+    gl: Renderer,
     camera_matrix: Option<Mat4>,
 
     #[cfg(feature="ui")]
     ui_context: UiContext,
-    fonts_storage: text::FontsStorage,
+    font_storage: text::FontStorage,
 
     pc_assets_folder: Option<String>,
 
@@ -284,21 +282,6 @@ impl Context {
             default_filter_mode,
             textures: crate::texture::TexturesContext::new(),
             update_on,
-        }
-    }
-
-    /// Returns the handle for this texture.
-    pub fn raw_miniquad_id(&self, handle: &TextureHandle) -> miniquad::TextureId {
-        match handle {
-            TextureHandle::Unmanaged(texture) => *texture,
-            TextureHandle::Managed(texture) => self
-                .textures
-                .texture(texture.0)
-                .unwrap_or(self.gl.white_texture),
-            TextureHandle::ManagedWeak(texture) => self
-                .textures
-                .texture(*texture)
-                .unwrap_or(self.gl.white_texture),
         }
     }
 
