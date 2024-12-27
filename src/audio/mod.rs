@@ -2,59 +2,12 @@
 
 #![allow(dead_code)]
 
-use crate::{file::load_file, get_context, Error};
+use crate::{fs::load_file, Error};
 use std::sync::Arc;
 
-#[cfg(feature = "audio")]
 use quad_snd::{AudioContext as QuadSndContext, Sound as QuadSndSound};
 
-#[cfg(feature = "audio")]
 pub use quad_snd::PlaySoundParams;
-
-#[cfg(not(feature = "audio"))]
-mod dummy_audio {
-    use crate::audio::PlaySoundParams;
-
-    pub struct AudioContext {}
-
-    impl AudioContext {
-        pub fn new() -> AudioContext {
-            AudioContext {}
-        }
-
-        #[cfg(target_os = "android")]
-        pub fn pause(&mut self) {}
-
-        #[cfg(target_os = "android")]
-        pub fn resume(&mut self) {}
-    }
-
-    pub struct Sound {}
-
-    impl Sound {
-        pub fn load(_ctx: &mut AudioContext, _data: &[u8]) -> Sound {
-            Sound {}
-        }
-
-        pub fn play(&self, _ctx: &mut AudioContext, _params: PlaySoundParams) {
-            eprintln!("warn: macroquad's \"audio\" feature disabled.");
-        }
-
-        pub fn stop(&self, _ctx: &mut AudioContext) {}
-
-        pub fn set_volume(&self, _ctx: &mut AudioContext, _volume: f32) {}
-
-        #[allow(dead_code)]
-        pub fn is_loaded(&self) -> bool {
-            true
-        }
-
-        pub fn delete(&self, _ctx: &AudioContext) {}
-    }
-}
-
-#[cfg(not(feature = "audio"))]
-use dummy_audio::{AudioContext as QuadSndContext, Sound as QuadSndSound};
 
 #[cfg(not(feature = "audio"))]
 pub struct PlaySoundParams {
@@ -106,16 +59,15 @@ impl std::fmt::Debug for Sound {
 ///
 /// Attempts to automatically detect the format of the source of data.
 
-pub async fn load_sound(path: &str) -> Result<Sound, Error> {
-    let data = load_file(path).await?;
-
-    load_sound_from_bytes(&data).await
+pub fn load_sound(path: &str) -> Result<Sound, miniquad::fs::Error> {
+    let data = load_file(path)?;
+    load_sound_from_bytes(&data)
 }
 
 /// Load audio data.
 ///
 /// Attempts to automatically detect the format of the source of data.
-pub async fn load_sound_from_bytes(data: &[u8]) -> Result<Sound, Error> {
+pub fn load_sound_from_bytes(data: &[u8]) -> Result<Sound, Error> {
     let sound = {
         let ctx = &mut get_context().audio_context;
         QuadSndSound::load(&mut ctx.native_ctx, data)
