@@ -61,10 +61,6 @@ unsafe impl AsVertex for Vertex {
     }
 }
 
-struct Test {
-
-}
-
 pub struct Mesh<V>
 where V: AsVertex {
     pub vertices: Vec<V>,
