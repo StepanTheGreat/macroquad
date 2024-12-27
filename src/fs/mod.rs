@@ -1,11 +1,13 @@
-use std::{path::Path, sync::mpsc::channel};
+use std::sync::mpsc::channel;
 
 static mut PC_ASSETS_FOLDER: Option<String> = None;
 
+
+/// Set the pc assets path
+///
 /// To avoid unneccessary management, this is one of the rare cases where global state
-/// can somewhat simplify our life. If you keep this static at [`None`] (the default)
-/// - nothing happens, but if you need - you can change it to [`Some(...)`]
-/// 
+/// can somewhat simplify our life. If you keep this static at [None] (the default) - nothing happens, 
+/// but if you need it, you can change it to [Some(...)] 
 pub unsafe fn set_pc_assets_folder(to: Option<String>) {
     PC_ASSETS_FOLDER = to;
 }
@@ -15,9 +17,14 @@ pub unsafe fn get_pc_assets_folder() -> Option<&'static String> {
     PC_ASSETS_FOLDER.as_ref()
 }
 
-/// Load file from the path and block until its loaded
-/// Will use filesystem on PC and do http request on web
-pub fn load_file(path: &str) -> Result<Vec<u8>, Error> {
+/// Load file from the path and block until its loaded.
+/// 
+/// Will use filesystem on native targets, and http requests on the web. Under the hood it also uses the
+/// global variable pc_assets_folder, which will be used on android to load files
+/// 
+/// For an "async" version of it (i.e. that uses calls) use [miniquad::fs::load_file] directly.
+/// PS: This implementation simply uses a channel with default
+pub fn load_file(path: &str) -> Result<Vec<u8>, miniquad::fs::Error> {
     #[cfg(target_os = "ios")]
     let _ = std::env::set_current_dir(std::env::current_exe().unwrap().parent().unwrap());
 
@@ -30,18 +37,18 @@ pub fn load_file(path: &str) -> Result<Vec<u8>, Error> {
 
     let (tx, rx) = channel();
 
-    miniquad::fs::load_file(&path, |res| {
+    miniquad::fs::load_file(&path, move |res| {
         tx.send(res);
     });
 
-    rx.recv()
+    rx.recv().expect("Should be impossible to return an error")
 }
 
 /// Load string from the path and block until its loaded.
 /// Right now this will use load_file and `from_utf8_lossy` internally, but
 /// implementation details may change in the future
-pub fn load_string(path: &str) -> Result<String, Error> {
-    let data = load_file(path);
+pub fn load_string(path: &str) -> Result<String, miniquad::fs::Error> {
+    let data = load_file(path)?;
     Ok(String::from_utf8_lossy(&data).to_string())
 }
 
