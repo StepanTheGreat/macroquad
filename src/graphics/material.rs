@@ -1,7 +1,9 @@
 //! Custom materials - shaders, uniforms.
 
-use crate::{graphics::GlPipeline, tobytes::ToBytes, Error};
+use crate::{tobytes::ToBytes, Error};
 use miniquad::{PipelineParams, RenderingBackend, TextureId, UniformDesc};
+
+use super::GlPipeline;
 
 use super::Renderer;
 
