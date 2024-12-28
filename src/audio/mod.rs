@@ -1,110 +1,40 @@
 //! Loading and playing sounds.
+use crate::fs::load_file;
 
-#![allow(dead_code)]
+pub use quad_snd::{
+    AudioContext, 
+    Sound as SoundId,
+    PlaySoundParams
+};
 
-use crate::{fs::load_file, Error};
-use std::sync::Arc;
-
-use quad_snd::{AudioContext as QuadSndContext, Sound as QuadSndSound};
-
-pub use quad_snd::PlaySoundParams;
-
-#[cfg(not(feature = "audio"))]
-pub struct PlaySoundParams {
-    pub looped: bool,
-    pub volume: f32,
-}
-
-pub struct AudioContext {
-    native_ctx: QuadSndContext,
-}
-
-impl AudioContext {
-    pub fn new() -> AudioContext {
-        AudioContext {
-            native_ctx: QuadSndContext::new(),
-        }
-    }
-
-    #[cfg(target_os = "android")]
-    pub fn pause(&mut self) {
-        self.native_ctx.pause()
-    }
-
-    #[cfg(target_os = "android")]
-    pub fn resume(&mut self) {
-        self.native_ctx.resume()
-    }
-}
-
-struct QuadSndSoundGuarded(QuadSndSound);
-
-impl Drop for QuadSndSoundGuarded {
-    fn drop(&mut self) {
-        let ctx = &get_context().audio_context;
-        self.0.delete(&ctx.native_ctx);
-    }
-}
-
-#[derive(Clone)]
-pub struct Sound(Arc<QuadSndSoundGuarded>);
-
-impl std::fmt::Debug for Sound {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Sound").finish()
-    }
-}
-
-/// Load audio file.
+/// Load an audio file.
 ///
 /// Attempts to automatically detect the format of the source of data.
-
-pub fn load_sound(path: &str) -> Result<Sound, miniquad::fs::Error> {
+/// 
+/// ### Warning
+/// 1. SoundId is not automatically cleaned, do it yourself, on the appropriate audio context
+/// 2. On wasm, a sound that is loaded from bytes, isn't actually fully
+/// loaded. Before playing it, use the [quad_snd::Sound::is_loaded] to check whether it's 
+/// ready:
+/// ```
+/// sound.is_loaded()
+/// ```
+pub fn load_sound(ctx: &AudioContext, path: &str) -> Result<SoundId, miniquad::fs::Error> {
     let data = load_file(path)?;
-    load_sound_from_bytes(&data)
+    Ok(load_sound_from_bytes(ctx, &data))
 }
 
 /// Load audio data.
 ///
 /// Attempts to automatically detect the format of the source of data.
-pub fn load_sound_from_bytes(data: &[u8]) -> Result<Sound, Error> {
-    let sound = {
-        let ctx = &mut get_context().audio_context;
-        QuadSndSound::load(&mut ctx.native_ctx, data)
-    };
-
-    // only on wasm the sound is not ready right away
-    #[cfg(target_arch = "wasm32")]
-    while sound.is_loaded() == false {
-        crate::window::next_frame().await;
-    }
-
-    Ok(Sound(Arc::new(QuadSndSoundGuarded(sound))))
-}
-
-pub fn play_sound_once(sound: &Sound) {
-    let ctx = &mut get_context().audio_context;
-
-    sound.0 .0.play(
-        &mut ctx.native_ctx,
-        PlaySoundParams {
-            looped: false,
-            volume: 1.0,
-        },
-    );
-}
-
-pub fn play_sound(sound: &Sound, params: PlaySoundParams) {
-    let ctx = &mut get_context().audio_context;
-    sound.0 .0.play(&mut ctx.native_ctx, params);
-}
-
-pub fn stop_sound(sound: &Sound) {
-    let ctx = &mut get_context().audio_context;
-    sound.0 .0.stop(&mut ctx.native_ctx);
-}
-
-pub fn set_sound_volume(sound: &Sound, volume: f32) {
-    let ctx = &mut get_context().audio_context;
-    sound.0 .0.set_volume(&mut ctx.native_ctx, volume);
+/// ### Warning
+/// 1. SoundId is not automatically cleaned, do it yourself, on the appropriate audio context
+/// 2. On wasm, a sound that is loaded from bytes, isn't actually fully
+/// loaded. Before playing it, use the [quad_snd::Sound::is_loaded] to check whether it's 
+/// ready:
+/// ```
+/// sound.is_loaded()
+/// ```
+pub fn load_sound_from_bytes(ctx: &AudioContext, data: &[u8]) -> SoundId {
+    SoundId::load(ctx, data)
 }
