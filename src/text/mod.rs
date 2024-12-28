@@ -3,12 +3,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    color::Color,
     texture::Image,
     Error,
 };
 
-use crate::color::WHITE;
 use glam::{vec3, Mat4};
 use miniquad::{FilterMode, RenderingBackend};
 
@@ -29,9 +27,9 @@ pub(crate) struct CharacterInfo {
 /// Once again, it's your responsibility to manage and properly clean this after. TextureAtlas is essentially
 /// a [TextureId] in miniquad, so after using it - delete it using [RenderingBackend]
 pub struct FontAtlas {
-    font: fontdue::Font,
-    atlas: TextureAtlas,
-    characters: HashMap<(char, u16), CharacterInfo>,
+    pub(crate) font: fontdue::Font,
+    pub(crate) atlas: TextureAtlas,
+    pub(crate) characters: HashMap<(char, u16), CharacterInfo>,
 }
 
 /// World space dimensions of the text, measured by "measure_text" function
@@ -213,48 +211,10 @@ impl FontAtlas {
     ) {
         self.atlas.set_filter(backend, filter_mode);
     }
-
-    // pub fn texture(&self) -> Texture2D {
-    //     let font = get_context().fonts_storage.get_font(*self);
-
-    //     font.font_texture
-    // }
-}
-
-/// Arguments for "draw_text_ex" function such as font, font_size etc
-#[derive(Debug, Clone)]
-pub struct TextParams<'a> {
-    pub font: Option<&'a FontAtlas>,
-    /// Base size for character height. The size in pixel used during font rasterizing.
-    pub font_size: u16,
-    /// The glyphs sizes actually drawn on the screen will be font_size * font_scale
-    /// However with font_scale too different from 1.0 letters may be blurry
-    pub font_scale: f32,
-    /// Font X axis would be scaled by font_scale * font_scale_aspect
-    /// and Y axis would be scaled by font_scale
-    /// Default is 1.0
-    pub font_scale_aspect: f32,
-    /// Text rotation in radian
-    /// Default is 0.0
-    pub rotation: f32,
-    pub color: Color,
-}
-
-impl<'a> Default for TextParams<'a> {
-    fn default() -> TextParams<'a> {
-        TextParams {
-            font: None,
-            font_size: 20,
-            font_scale: 1.0,
-            font_scale_aspect: 1.0,
-            color: WHITE,
-            rotation: 0.0,
-        }
-    }
 }
 
 /// Load font from file with "path"
-pub async fn load_ttf_font(
+pub fn load_ttf_font(
     backend: &mut dyn RenderingBackend, 
     path: &str,
     filter: FilterMode
