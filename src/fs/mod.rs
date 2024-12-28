@@ -38,7 +38,7 @@ pub fn load_file(path: &str) -> Result<Vec<u8>, miniquad::fs::Error> {
     let (tx, rx) = channel();
 
     miniquad::fs::load_file(&path, move |res| {
-        tx.send(res);
+        let _ = tx.send(res);
     });
 
     rx.recv().expect("Should be impossible to return an error")
