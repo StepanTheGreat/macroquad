@@ -2,7 +2,7 @@
 
 use miniquad::*;
 
-pub use miniquad::{FilterMode, TextureId as MiniquadTexture, UniformDesc};
+pub use miniquad::{TextureId as MiniquadTexture, UniformDesc};
 
 use crate::{color::Color, logging::warn, tobytes::ToBytes, Error};
 
