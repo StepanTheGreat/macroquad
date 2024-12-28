@@ -26,10 +26,11 @@ impl Timer {
     }
 
     /// Update automatically using [miniquad::date::now]
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> f32 {
         let now = miniquad::date::now();
         self.delta_time = now - self.last_frame_time;
         self.last_frame_time = now;
+        self.delta_time as _
     }
 
     /// Update manually from the provided time
