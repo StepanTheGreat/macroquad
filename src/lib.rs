@@ -19,6 +19,8 @@ pub mod graphics;
 // pub mod ui;
 pub mod window;
 
+pub use glam;
+
 // pub mod telemetry;
 
 mod error;
