@@ -23,7 +23,6 @@ pub struct Texture {
     width: u16,
     height: u16,
     filter: FilterMode,
-    mipmap: MipmapFilterMode
 }
 
 impl Texture {
@@ -67,7 +66,6 @@ impl Texture {
             width: params.width as _,
             height: params.height as _,
             filter: params.mag_filter,
-            mipmap: params.mipmap_filter
         }
     }
 
