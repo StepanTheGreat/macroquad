@@ -1,6 +1,6 @@
 use miniquad::{FilterMode, RenderingBackend, TextureId};
 
-use crate::{texture::Image, Color};
+use crate::{texture::Image, color::Color};
 use crate::utils::Rect;
 
 use std::collections::HashMap;

@@ -74,7 +74,7 @@ pub struct MaterialParams {
 pub fn load_material(
     backend: &mut dyn RenderingBackend,
     renderer: &mut Renderer,
-    shader: crate::ShaderSource,
+    shader: miniquad::ShaderSource,
     params: MaterialParams,
 ) -> Result<Material, Error> {
 
