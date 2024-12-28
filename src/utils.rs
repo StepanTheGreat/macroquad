@@ -119,15 +119,15 @@ impl Rect {
     }
 }
 
-impl Into<Rect> for [f32; 4] {
-    fn into(self) -> Rect {
-        Rect::new(self[0], self[1], self[2], self[3])
+impl From<[f32; 4]> for Rect {
+    fn from(val: [f32; 4]) -> Rect {
+        Rect::new(val[0], val[1], val[2], val[3])
     }
 }
 
-impl Into<Rect> for (f32, f32, f32, f32) {
-    fn into(self) -> Rect {
-        Rect::new(self.0, self.1, self.2, self.3)
+impl From<(f32, f32, f32, f32)> for Rect {
+    fn from(val: (f32, f32, f32, f32)) -> Rect {
+        Rect::new(val.0, val.1, val.2, val.3)
     }
 }
 

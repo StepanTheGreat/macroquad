@@ -1,22 +1,22 @@
-//! Macroquad abstractions 
-//! 
+//! Macroquad abstractions
+//!
 //! A crate designed to expose macroquad abstractions in a modular way
 
 mod graphics;
 mod tobytes;
 
-pub mod time;
-#[cfg(feature="quad-snd")]
+#[cfg(feature = "quad-snd")]
 pub mod audio;
-pub mod utils;
 pub mod color;
+pub mod draw;
+pub mod fs;
 pub mod input;
 pub mod text;
-pub mod draw;
 pub mod texture;
-pub mod fs;
-#[cfg(feature="ui")]
-pub mod ui;
+pub mod time;
+pub mod utils;
+// #[cfg(feature = "ui")]
+// pub mod ui;
 pub mod window;
 
 // pub mod telemetry;

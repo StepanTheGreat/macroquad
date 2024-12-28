@@ -1,12 +1,12 @@
 //! Everything related to drawing:
 //! 3D, 2D, Textures
 
-pub mod shapes;
-pub mod texture;
 pub mod geometry;
+pub mod shapes;
 pub mod text;
+pub mod texture;
 
-pub use shapes::*;
-pub use texture::*;
 pub use geometry::*;
+pub use shapes::*;
 pub use text::*;
+pub use texture::*;

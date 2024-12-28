@@ -8,7 +8,7 @@ use crate::{color::Color, logging::warn, tobytes::ToBytes, Error};
 
 use std::collections::BTreeMap;
 
-pub(crate) use super::{Vertex, AsVertex};
+pub(crate) use super::{AsVertex, Vertex};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DrawMode {
@@ -174,9 +174,14 @@ impl PipelineExt {
             );
             return;
         }
-        for i in 0..uniform_byte_size {
-            self.uniforms_data[uniform_byte_offset + i] = data[i];
-        }
+
+        // for i in 0..uniform_byte_size {
+        //     self.uniforms_data[uniform_byte_offset + i] = data[i];
+        // }
+
+        // That's from clippy. I'm leaving the original as well
+        self.uniforms_data[uniform_byte_offset..(uniform_byte_size + uniform_byte_offset)]
+            .copy_from_slice(&data[..uniform_byte_size]);
     }
 }
 
@@ -334,7 +339,11 @@ impl PipelineStorage {
     }
 
     /// Get the default pipeline by draw mode and depth flag
-    const fn get_default_pipeline_by(&self, draw_mode: DrawMode, depth_enabled: bool) -> GlPipeline {
+    const fn get_default_pipeline_by(
+        &self,
+        draw_mode: DrawMode,
+        depth_enabled: bool,
+    ) -> GlPipeline {
         match (draw_mode, depth_enabled) {
             (DrawMode::Triangles, false) => Self::TRIANGLES_PIPELINE,
             (DrawMode::Triangles, true) => Self::TRIANGLES_DEPTH_PIPELINE,
@@ -351,7 +360,7 @@ impl PipelineStorage {
     /// Check whether this storage has the specified pipeline
     fn has_pipeline(&self, pip: &GlPipeline) -> bool {
         self.pipelines[pip.0].is_some()
-    } 
+    }
 
     fn delete_pipeline(&mut self, pip: GlPipeline) {
         self.pipelines[pip.0] = None;
@@ -363,7 +372,9 @@ impl PipelineStorage {
 /// 2. It performs draw calls on the supplied rendering context
 /// 3. It creates pipelines
 pub struct Renderer<V = Vertex>
-where V: AsVertex {
+where
+    V: AsVertex,
+{
     pipelines: PipelineStorage,
 
     draw_calls: Vec<DrawCall>,
@@ -381,7 +392,9 @@ where V: AsVertex {
 }
 
 impl<V> Renderer<V>
-where V: AsVertex {
+where
+    V: AsVertex,
+{
     pub fn new(
         ctx: &mut dyn miniquad::RenderingBackend,
         max_vertices: usize,
@@ -446,13 +459,9 @@ where V: AsVertex {
 
         let shader = ctx.new_shader(shader, shader_meta)?;
 
-        Ok(self.pipelines.make_pipeline::<V>(
-            ctx,
-            shader,
-            params,
-            uniforms,
-            textures,
-        ))
+        Ok(self
+            .pipelines
+            .make_pipeline::<V>(ctx, shader, params, uniforms, textures))
     }
 
     /// Clear the framebuffer with a specified color, then clear the draw calls
@@ -572,9 +581,10 @@ where V: AsVertex {
             ctx.apply_bindings(bindings);
 
             if let Some(ref uniforms) = dc.uniforms {
-                for i in 0..uniforms.len() {
-                    pipeline.uniforms_data[i] = uniforms[i];
-                }
+                // for i in 0..uniforms.len() {
+                //     pipeline.uniforms_data[i] = uniforms[i];
+                // }
+                pipeline.uniforms_data[..uniforms.len()].copy_from_slice(&uniforms[..]);
             }
             pipeline.set_uniform("Projection", projection);
             pipeline.set_uniform("Model", dc.model);
@@ -648,7 +658,7 @@ where V: AsVertex {
         self.state.model_stack.push(self.state.model() * matrix);
     }
 
-    pub fn pop_model_matrix(&mut self) -> Option<glam::Mat4>{
+    pub fn pop_model_matrix(&mut self) -> Option<glam::Mat4> {
         if self.state.model_stack.len() > 1 {
             self.state.model_stack.pop()
         } else {
@@ -662,7 +672,10 @@ where V: AsVertex {
         }
 
         if let Some(ref pip) = pipeline {
-            assert!(self.has_pipeline(pip), "The provided pipeline isn't present in the renderer")
+            assert!(
+                self.has_pipeline(pip),
+                "The provided pipeline isn't present in the renderer"
+            )
         }
 
         self.state.break_batching = true;
@@ -673,7 +686,7 @@ where V: AsVertex {
         self.state.draw_mode = mode;
     }
 
-    /// TODO: Document this 
+    /// TODO: Document this
     pub fn push_geometry(&mut self, vertices: &[V], indices: &[u16]) {
         if vertices.len() >= self.max_vertices || indices.len() >= self.max_indices {
             warn!("geometry() exceeded max drawcall size, clamping");
@@ -707,14 +720,12 @@ where V: AsVertex {
                 || draw_call.capture != self.state.capture
                 || self.state.break_batching
         }) {
-            let uniforms = self.state.pipeline.map_or(None, |pipeline| {
-                Some(
-                    self.pipelines
-                        .get_pipeline_mut(&pipeline)
-                        .unwrap()
-                        .uniforms_data
-                        .clone(),
-                )
+            let uniforms = self.state.pipeline.map(|pipeline| {
+                self.pipelines
+                    .get_pipeline_mut(&pipeline)
+                    .unwrap()
+                    .uniforms_data
+                    .clone()
             });
 
             if self.draw_calls_count >= self.draw_calls.len() {
@@ -791,7 +802,8 @@ where V: AsVertex {
 
     /// Set a texture under specified name for the provided pipeline
     pub fn set_texture(&mut self, pipeline: &GlPipeline, name: &str, texture: TextureId) {
-        let pipeline = self.pipelines
+        let pipeline = self
+            .pipelines
             .get_pipeline_mut(pipeline)
             .expect("The provided pipeline has to be present in the renderer");
 
@@ -812,10 +824,10 @@ where V: AsVertex {
     }
 
     /// Update the maximum amount of vertices and indices this renderer can accept per draw call.
-    /// 
+    ///
     /// ### Attention
     /// This is an expensive operation, as it also changes every existing draw call in the renderer,
-    /// removes all drawcalls, and then finally recreates all vertex/index buffers bindings. 
+    /// removes all drawcalls, and then finally recreates all vertex/index buffers bindings.
     pub fn update_drawcall_capacity(
         &mut self,
         backend: &mut dyn miniquad::RenderingBackend,

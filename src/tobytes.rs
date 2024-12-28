@@ -1,7 +1,7 @@
 use glam::{Mat4, Vec2, Vec3, Vec4};
 
 /// Does exactly what it sounds like - converts a type to a slice of bytes.
-/// 
+///
 /// It's supposed to be used only with graphics, so
 pub trait ToBytes {
     unsafe fn to_bytes(&self) -> &[u8];
@@ -10,10 +10,7 @@ macro_rules! impl_tobytes {
     ($t:tt) => {
         impl ToBytes for $t {
             unsafe fn to_bytes(&self) -> &[u8] {
-                std::slice::from_raw_parts(
-                    self as *const _ as *const u8,
-                    std::mem::size_of::<$t>(),
-                )
+                std::slice::from_raw_parts(self as *const _ as *const u8, std::mem::size_of::<$t>())
             }
         }
     };
@@ -39,7 +36,7 @@ impl<T: ToBytes> ToBytes for &[T] {
         unsafe {
             std::slice::from_raw_parts(
                 self.as_ptr() as *const _ as *const u8,
-                std::mem::size_of::<T>() * self.len(),
+                std::mem::size_of_val(self), // std::mem::size_of::<T>() * self.len(),
             )
         }
     }

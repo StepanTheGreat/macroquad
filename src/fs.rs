@@ -1,27 +1,29 @@
 use std::sync::mpsc::channel;
+use std::sync::Mutex;
 
-static mut PC_ASSETS_FOLDER: Option<String> = None;
-
+static PC_ASSETS_FOLDER: Mutex<Option<String>> = Mutex::new(None);
 
 /// Set the pc assets path
 ///
 /// To avoid unneccessary management, this is one of the rare cases where global state
-/// can somewhat simplify our life. If you keep this static at [None] (the default) - nothing happens, 
-/// but if you need it, you can change it to [Some(...)] 
-pub unsafe fn set_pc_assets_folder(to: Option<String>) {
-    PC_ASSETS_FOLDER = to;
+/// can somewhat simplify our life. If you keep this static at [None] (the default) - nothing happens,
+/// but if you need it, you can change it to [Some(...)]
+pub fn set_pc_assets_folder(to: Option<String>) {
+    *PC_ASSETS_FOLDER
+        .lock()
+        .expect("PC assets folder shouldn't be accessed from multiple threads") = to;
 }
 
 /// Get the inner value of pc_assets_folder static variable.
-pub unsafe fn get_pc_assets_folder() -> Option<&'static String> {
-    PC_ASSETS_FOLDER.as_ref()
+pub fn get_pc_assets_folder() -> Option<String> {
+    PC_ASSETS_FOLDER.lock().unwrap().clone()
 }
 
 /// Load file from the path and block until its loaded.
-/// 
+///
 /// Will use filesystem on native targets, and http requests on the web. Under the hood it also uses the
 /// global variable pc_assets_folder, which will be used on android to load files
-/// 
+///
 /// For an "async" version of it (i.e. that uses calls) use [miniquad::fs::load_file] directly.
 /// PS: This implementation simply uses a channel with default
 pub fn load_file(path: &str) -> Result<Vec<u8>, miniquad::fs::Error> {
@@ -29,7 +31,7 @@ pub fn load_file(path: &str) -> Result<Vec<u8>, miniquad::fs::Error> {
     let _ = std::env::set_current_dir(std::env::current_exe().unwrap().parent().unwrap());
 
     #[cfg(not(target_os = "android"))]
-    let path = if let Some(ref pc_assets) = unsafe { get_pc_assets_folder() } {
+    let path = if let Some(ref pc_assets) = get_pc_assets_folder() {
         format!("{pc_assets}/{path}")
     } else {
         path.to_string()

@@ -5,17 +5,17 @@ use crate::{color::Color, utils::Rect};
 use super::new_texture_from_rgba8;
 
 /// Loads an [Image] from a file into CPU memory.
-/// 
+///
 /// Currently this function returns an [Option] as an ungly workaround
 pub fn load_image(path: &str) -> Option<Image> {
     let bytes = match crate::fs::load_file(path) {
         Ok(bytes) => bytes,
-        Err(_) => return None
+        Err(_) => return None,
     };
 
     match Image::from_bytes_with_format(&bytes, None) {
         Ok(img) => Some(img),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -72,9 +72,9 @@ impl Image {
     ) -> Result<Self, image::error::ImageError> {
         let img = match format {
             Some(fmt) => image::load_from_memory_with_format(bytes, fmt)?.to_rgba8(),
-            None => image::load_from_memory(bytes)?.to_rgba8()
+            None => image::load_from_memory(bytes)?.to_rgba8(),
         };
-        
+
         let width = img.width() as u16;
         let height = img.height() as u16;
         let bytes = img.into_raw();
@@ -87,12 +87,9 @@ impl Image {
     }
 
     /// Create an image from a provided GPU Texture.
-    /// 
+    ///
     /// This is an expensive operation, so avoid it doing often
-    pub fn from_texture(
-        backend: &mut dyn RenderingBackend,
-        texture: &TextureId
-    ) -> Self {
+    pub fn from_texture(backend: &mut dyn RenderingBackend, texture: &TextureId) -> Self {
         let (width, height) = backend.texture_size(*texture);
         let mut image = Self {
             width: width as _,
@@ -107,7 +104,7 @@ impl Image {
     pub fn gen_image_color(width: u16, height: u16, color: Color) -> Image {
         let mut bytes = vec![0; width as usize * height as usize * 4];
         for i in 0..width as usize * height as usize {
-            bytes[i * 4 + 0] = (color.r * 255.) as u8;
+            bytes[i * 4] = (color.r * 255.) as u8;
             bytes[i * 4 + 1] = (color.g * 255.) as u8;
             bytes[i * 4 + 2] = (color.b * 255.) as u8;
             bytes[i * 4 + 3] = (color.a * 255.) as u8;
@@ -123,11 +120,11 @@ impl Image {
     pub fn update(&mut self, colors: &[Color]) {
         assert!(self.width as usize * self.height as usize == colors.len());
 
-        for i in 0..colors.len() {
-            self.bytes[i * 4] = (colors[i].r * 255.) as u8;
-            self.bytes[i * 4 + 1] = (colors[i].g * 255.) as u8;
-            self.bytes[i * 4 + 2] = (colors[i].b * 255.) as u8;
-            self.bytes[i * 4 + 3] = (colors[i].a * 255.) as u8;
+        for (i, color) in colors.iter().enumerate() {
+            self.bytes[i * 4] = (color.r * 255.) as u8;
+            self.bytes[i * 4 + 1] = (color.g * 255.) as u8;
+            self.bytes[i * 4 + 2] = (color.b * 255.) as u8;
+            self.bytes[i * 4 + 3] = (color.a * 255.) as u8;
         }
     }
 
@@ -191,7 +188,7 @@ impl Image {
         let mut n = 0;
         for y in y..y + height {
             for x in x..x + width {
-                bytes[n] = self.bytes[y * self.width as usize * 4 + x * 4 + 0];
+                bytes[n] = self.bytes[y * self.width as usize * 4 + x * 4];
                 bytes[n + 1] = self.bytes[y * self.width as usize * 4 + x * 4 + 1];
                 bytes[n + 2] = self.bytes[y * self.width as usize * 4 + x * 4 + 2];
                 bytes[n + 3] = self.bytes[y * self.width as usize * 4 + x * 4 + 3];
@@ -298,10 +295,10 @@ impl Image {
         )
         .unwrap();
     }
-    
+
     /// Create a raw [TextureId] from an [Image]. This is a simplified version of
     /// [Image::to_texture_ex], which doesn't enforce any specific filters/mipmap settings
-    /// 
+    ///
     /// ### Warning
     /// The texture returned is raw [miniquad::TextureId]. It's not cleaned up automatically like in
     /// macroquad, so it's your responsibility to handle it properly.
@@ -311,20 +308,15 @@ impl Image {
 
     /// Create a raw [TextureId] from an [Image]. This is a more detailed version of
     /// [Image::to_texture]
-    /// 
+    ///
     /// ### Warning
     /// The texture returned is raw [miniquad::TextureId]. It's not cleaned up automatically like in
     /// macroquad, so it's your responsibility to handle it properly.
-    pub fn to_texture_ex(&self, 
-        backend: &mut dyn RenderingBackend, 
+    pub fn to_texture_ex(
+        &self,
+        backend: &mut dyn RenderingBackend,
         filter: Option<FilterMode>,
     ) -> TextureId {
-        new_texture_from_rgba8(
-            backend, 
-            self.width, 
-            self.height, 
-            &self.bytes, 
-            filter, 
-        )
+        new_texture_from_rgba8(backend, self.width, self.height, &self.bytes, filter)
     }
 }

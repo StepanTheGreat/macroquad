@@ -1,4 +1,4 @@
-//! Input state management 
+//! Input state management
 
 use std::collections::{HashMap, HashSet};
 
@@ -39,11 +39,11 @@ fn convert_to_local(pixel_pos: Vec2) -> Vec2 {
 }
 
 /// A simple state struct that simplifies input management.
-/// 
+///
 /// Simply feed it data and it will update everything for you:
 /// - All state update methods are prefixed with `update_`
 /// - All other methods are getters for the inner state.
-/// 
+///
 /// Some update methods will ask for `cursor_grabbed`, which you should keep track of yourself.
 pub struct InputState {
     keys_down: HashSet<KeyCode>,
@@ -59,7 +59,7 @@ pub struct InputState {
     mouse_wheel: Vec2,
 
     /// Whether to conver touch input to mouse input
-    pub simulate_mouse_with_touch: bool
+    pub simulate_mouse_with_touch: bool,
 }
 
 impl InputState {
@@ -77,7 +77,7 @@ impl InputState {
             last_mouse_position: None,
             mouse_wheel: vec2(0., 0.),
 
-            simulate_mouse_with_touch
+            simulate_mouse_with_touch,
         }
     }
 
@@ -116,7 +116,13 @@ impl InputState {
         self.mouse_wheel.y = y;
     }
 
-    pub fn update_mouse_button_down_event(&mut self, btn: MouseButton, x: f32, y: f32, cursor_grabbed: bool) {
+    pub fn update_mouse_button_down_event(
+        &mut self,
+        btn: MouseButton,
+        x: f32,
+        y: f32,
+        cursor_grabbed: bool,
+    ) {
         self.mouse_down.insert(btn);
         self.mouse_pressed.insert(btn);
 
@@ -125,7 +131,13 @@ impl InputState {
         }
     }
 
-    pub fn update_mouse_button_up_event(&mut self, btn: MouseButton, x: f32, y: f32, cursor_grabbed: bool) {
+    pub fn update_mouse_button_up_event(
+        &mut self,
+        btn: MouseButton,
+        x: f32,
+        y: f32,
+        cursor_grabbed: bool,
+    ) {
         self.mouse_down.remove(&btn);
         self.mouse_released.insert(btn);
 
@@ -134,12 +146,19 @@ impl InputState {
         }
     }
 
-    pub fn update_touch_event(&mut self, phase: TouchPhase, id: u64, x: f32, y: f32, cursor_grabbed: bool) {
+    pub fn update_touch_event(
+        &mut self,
+        phase: TouchPhase,
+        id: u64,
+        x: f32,
+        y: f32,
+        cursor_grabbed: bool,
+    ) {
         self.touches.insert(
             id,
             Touch {
                 id,
-                phase: phase.into(),
+                phase,
                 position: Vec2::new(x, y),
             },
         );
@@ -165,7 +184,7 @@ impl InputState {
 
     pub fn update_key_down_event(&mut self, keycode: KeyCode, _mods: KeyMods, repeat: bool) {
         self.keys_down.insert(keycode);
-        if repeat == false {
+        if !repeat {
             self.keys_pressed.insert(keycode);
         }
     }
@@ -200,14 +219,14 @@ impl InputState {
     }
 
     /// Return touches with positions in pixels.
-    /// 
+    ///
     /// Attention: This method will clone its inner touch vector, so better reuse the same values instead
     pub fn touches(&self) -> Vec<Touch> {
         self.touches.values().cloned().collect()
     }
 
-    /// Return touches with positions in range [-1; 1]. 
-    /// 
+    /// Return touches with positions in range [-1; 1].
+    ///
     /// The same warning as with [`InputState::touches`]
     pub fn touches_local(&self) -> Vec<Touch> {
         self.touches

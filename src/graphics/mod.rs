@@ -1,8 +1,8 @@
 //! Everything graphics related
 
+use crate::color::Color;
 use glam::{vec2, vec3, vec4, Vec2, Vec3, Vec4};
 use miniquad::{VertexAttribute, VertexFormat};
-use crate::color::Color;
 
 mod renderer;
 pub use renderer::*;
@@ -11,13 +11,17 @@ pub mod camera;
 pub use camera::{Camera, Camera2D, Camera3D};
 
 pub mod material;
-pub use material::{Material, MaterialParams, use_default_material, use_material};
+pub use material::{use_default_material, use_material, Material, MaterialParams};
 
 /// A vertex trait that you can implement on any type you want to turn into a Vertex.
-/// 
-/// Attention: the desired type should be [`repr(C)`], and all its fields have to implement [`ToBytes`] 
+///
+/// # Safety
+/// The desired type has to be [`repr(C)`], and all its fields have to implement [`ToBytes`],
+/// since it will be casted to bytes in the graphics pipeline after.
 pub unsafe trait AsVertex
-where Self: Clone + Copy {
+where
+    Self: Clone + Copy,
+{
     /// Get [`VertexAttribute`]s of this Vertex. This is required when constructing pipelines
     fn attributes() -> Vec<VertexAttribute>;
 }
@@ -67,7 +71,9 @@ unsafe impl AsVertex for Vertex {
 }
 
 pub struct Mesh<V>
-where V: AsVertex {
+where
+    V: AsVertex,
+{
     pub vertices: Vec<V>,
     pub indices: Vec<u16>,
     pub texture: Option<miniquad::TextureId>,

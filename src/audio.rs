@@ -1,21 +1,17 @@
 //! Loading and playing sounds.
 use crate::fs::load_file;
 
-pub use quad_snd::{
-    AudioContext, 
-    Sound as SoundId,
-    PlaySoundParams
-};
+pub use quad_snd::{AudioContext, PlaySoundParams, Sound as SoundId};
 
 /// Load an audio file.
 ///
 /// Attempts to automatically detect the format of the source of data.
-/// 
+///
 /// ### Warning
 /// 1. SoundId is not automatically cleaned, do it yourself, on the appropriate audio context
 /// 2. On wasm, a sound that is loaded from bytes, isn't actually fully
-/// loaded. Before playing it, use the [quad_snd::Sound::is_loaded] to check whether it's 
-/// ready:
+///    loaded. Before playing it, use the [quad_snd::Sound::is_loaded] to check whether it's
+///    ready:
 /// ```
 /// sound.is_loaded()
 /// ```
@@ -30,8 +26,8 @@ pub fn load_sound(ctx: &AudioContext, path: &str) -> Result<SoundId, miniquad::f
 /// ### Warning
 /// 1. SoundId is not automatically cleaned, do it yourself, on the appropriate audio context
 /// 2. On wasm, a sound that is loaded from bytes, isn't actually fully
-/// loaded. Before playing it, use the [quad_snd::Sound::is_loaded] to check whether it's 
-/// ready:
+///    loaded. Before playing it, use the [quad_snd::Sound::is_loaded] to check whether it's
+///    ready:
 /// ```
 /// sound.is_loaded()
 /// ```

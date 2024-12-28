@@ -5,14 +5,14 @@ use crate::color::Color;
 use glam::{vec2, vec3, Quat, Vec2, Vec3};
 use miniquad::TextureId;
 
-use crate::graphics::{Renderer, DrawMode, Vertex, AsVertex, Mesh};
+use crate::graphics::{AsVertex, DrawMode, Mesh, Renderer, Vertex};
 
 /// Draw a mesh with an arbitrary Vertex
-/// 
+///
 /// Compared to other functions (from macroquad), this one works on any Vertex that implements [AsVertex],
-/// so if you would like to draw your own shapes - you can simply construct a custom [Mesh] and call this 
+/// so if you would like to draw your own shapes - you can simply construct a custom [Mesh] and call this
 /// function.
-/// 
+///
 /// Or you can simply do it directly using [Renderer]. You're free on this one
 pub fn draw_mesh<V: AsVertex>(renderer: &mut Renderer<V>, mesh: &Mesh<V>) {
     renderer.with_texture(mesh.texture.as_ref());
@@ -26,12 +26,7 @@ fn draw_quad(renderer: &mut Renderer<Vertex>, vertices: [Vertex; 4]) {
     renderer.push_geometry(&vertices, &indices);
 }
 
-pub fn draw_line_3d(
-    renderer: &mut Renderer<Vertex>, 
-    start: Vec3, 
-    end: Vec3, 
-    color: Color
-) {
+pub fn draw_line_3d(renderer: &mut Renderer<Vertex>, start: Vec3, end: Vec3, color: Color) {
     let uv = vec2(0., 0.);
     let indices = [0, 1];
 
@@ -44,11 +39,11 @@ pub fn draw_line_3d(
 
 /// Draw a grid centered at (0, 0, 0)
 pub fn draw_grid(
-    renderer: &mut Renderer<Vertex>, 
-    slices: u32, 
-    spacing: f32, 
-    axes_color: Color, 
-    other_color: Color
+    renderer: &mut Renderer<Vertex>,
+    slices: u32,
+    spacing: f32,
+    axes_color: Color,
+    other_color: Color,
 ) {
     draw_grid_ex(
         renderer,
@@ -99,10 +94,10 @@ pub fn draw_grid_ex(
 
 pub fn draw_plane(
     renderer: &mut Renderer<Vertex>,
-    center: Vec3, 
-    size: Vec2, 
-    texture: Option<&TextureId>, 
-    color: Color
+    center: Vec3,
+    size: Vec2,
+    texture: Option<&TextureId>,
+    color: Color,
 ) {
     let v1 = Vertex::new2(center + vec3(-size.x, 0., -size.y), vec2(0., 0.), color);
     let v2 = Vertex::new2(center + vec3(-size.x, 0., size.y), vec2(0., 1.), color);
@@ -122,7 +117,7 @@ pub fn draw_plane(
 /// * `offset` - Offset of the first point from the origin
 /// * `e1`, `e2` - Base vectors for the parallelogram
 /// * `texture` - Optional [TextureId] to apply, which will be streched on the entire shape (todo!
-/// support custom uv values per vertex)
+///    support custom uv values per vertex)
 /// * `color` - The [Color] to draw the parallelogram
 ///
 /// # Examples
@@ -165,7 +160,7 @@ pub fn draw_affine_parallelogram(
 /// * `offset` - Offset of the first point from the origin
 /// * `e1`, `e2`, `e3` - Base vectors for the parallelepiped
 /// * `texture` - Optional [TextureId] to apply, which will repeat on each face (todo!
-/// support custom uv values per vertex, multiple textures?)
+///    support custom uv values per vertex, multiple textures?)
 /// * `color` - The [Color] to draw the parallelepiped (todo! support color per face?)
 ///
 /// # Examples
@@ -195,10 +190,10 @@ pub fn draw_affine_parallelepiped(
 
 pub fn draw_cube(
     renderer: &mut Renderer<Vertex>,
-    position: Vec3, 
-    size: Vec3, 
-    texture: Option<&TextureId>, 
-    color: Color
+    position: Vec3,
+    size: Vec3,
+    texture: Option<&TextureId>,
+    color: Color,
 ) {
     renderer.with_texture(texture);
 
@@ -217,12 +212,15 @@ pub fn draw_cube(
     let tl_pos = vec3(x - width / 2., y + height / 2., z + length / 2.);
     let tl_uv = vec2(0., 1.);
 
-    draw_quad(renderer, [
-        Vertex::new2(bl_pos, bl_uv, color),
-        Vertex::new2(br_pos, br_uv, color),
-        Vertex::new2(tr_pos, tr_uv, color),
-        Vertex::new2(tl_pos, tl_uv, color),
-    ]);
+    draw_quad(
+        renderer,
+        [
+            Vertex::new2(bl_pos, bl_uv, color),
+            Vertex::new2(br_pos, br_uv, color),
+            Vertex::new2(tr_pos, tr_uv, color),
+            Vertex::new2(tl_pos, tl_uv, color),
+        ],
+    );
 
     // Back face
     let bl_pos = vec3(x - width / 2., y - height / 2., z - length / 2.);
@@ -236,12 +234,15 @@ pub fn draw_cube(
     let tl_pos = vec3(x - width / 2., y + height / 2., z - length / 2.);
     let tl_uv = vec2(0., 1.);
 
-    draw_quad(renderer, [
-        Vertex::new2(bl_pos, bl_uv, color),
-        Vertex::new2(br_pos, br_uv, color),
-        Vertex::new2(tr_pos, tr_uv, color),
-        Vertex::new2(tl_pos, tl_uv, color),
-    ]);
+    draw_quad(
+        renderer,
+        [
+            Vertex::new2(bl_pos, bl_uv, color),
+            Vertex::new2(br_pos, br_uv, color),
+            Vertex::new2(tr_pos, tr_uv, color),
+            Vertex::new2(tl_pos, tl_uv, color),
+        ],
+    );
 
     // Top face
     let bl_pos = vec3(x - width / 2., y + height / 2., z - length / 2.);
@@ -255,12 +256,15 @@ pub fn draw_cube(
     let tl_pos = vec3(x + width / 2., y + height / 2., z - length / 2.);
     let tl_uv = vec2(1., 1.);
 
-    draw_quad(renderer, [
-        Vertex::new2(bl_pos, bl_uv, color),
-        Vertex::new2(br_pos, br_uv, color),
-        Vertex::new2(tr_pos, tr_uv, color),
-        Vertex::new2(tl_pos, tl_uv, color),
-    ]);
+    draw_quad(
+        renderer,
+        [
+            Vertex::new2(bl_pos, bl_uv, color),
+            Vertex::new2(br_pos, br_uv, color),
+            Vertex::new2(tr_pos, tr_uv, color),
+            Vertex::new2(tl_pos, tl_uv, color),
+        ],
+    );
 
     // Bottom face
     let bl_pos = vec3(x - width / 2., y - height / 2., z - length / 2.);
@@ -274,12 +278,15 @@ pub fn draw_cube(
     let tl_pos = vec3(x + width / 2., y - height / 2., z - length / 2.);
     let tl_uv = vec2(1., 1.);
 
-    draw_quad(renderer, [
-        Vertex::new2(bl_pos, bl_uv, color),
-        Vertex::new2(br_pos, br_uv, color),
-        Vertex::new2(tr_pos, tr_uv, color),
-        Vertex::new2(tl_pos, tl_uv, color),
-    ]);
+    draw_quad(
+        renderer,
+        [
+            Vertex::new2(bl_pos, bl_uv, color),
+            Vertex::new2(br_pos, br_uv, color),
+            Vertex::new2(tr_pos, tr_uv, color),
+            Vertex::new2(tl_pos, tl_uv, color),
+        ],
+    );
 
     // Right face
     let bl_pos = vec3(x + width / 2., y - height / 2., z - length / 2.);
@@ -293,12 +300,15 @@ pub fn draw_cube(
     let tl_pos = vec3(x + width / 2., y - height / 2., z + length / 2.);
     let tl_uv = vec2(1., 1.);
 
-    draw_quad(renderer, [
-        Vertex::new2(bl_pos, bl_uv, color),
-        Vertex::new2(br_pos, br_uv, color),
-        Vertex::new2(tr_pos, tr_uv, color),
-        Vertex::new2(tl_pos, tl_uv, color),
-    ]);
+    draw_quad(
+        renderer,
+        [
+            Vertex::new2(bl_pos, bl_uv, color),
+            Vertex::new2(br_pos, br_uv, color),
+            Vertex::new2(tr_pos, tr_uv, color),
+            Vertex::new2(tl_pos, tl_uv, color),
+        ],
+    );
 
     // Left face
     let bl_pos = vec3(x - width / 2., y - height / 2., z - length / 2.);
@@ -312,12 +322,15 @@ pub fn draw_cube(
     let tl_pos = vec3(x - width / 2., y - height / 2., z + length / 2.);
     let tl_uv = vec2(1., 1.);
 
-    draw_quad(renderer, [
-        Vertex::new2(bl_pos, bl_uv, color),
-        Vertex::new2(br_pos, br_uv, color),
-        Vertex::new2(tr_pos, tr_uv, color),
-        Vertex::new2(tl_pos, tl_uv, color),
-    ]);
+    draw_quad(
+        renderer,
+        [
+            Vertex::new2(bl_pos, bl_uv, color),
+            Vertex::new2(br_pos, br_uv, color),
+            Vertex::new2(tr_pos, tr_uv, color),
+            Vertex::new2(tl_pos, tl_uv, color),
+        ],
+    );
 }
 
 pub fn draw_cube_wires(renderer: &mut Renderer<Vertex>, position: Vec3, size: Vec3, color: Color) {
@@ -330,74 +343,69 @@ pub fn draw_cube_wires(renderer: &mut Renderer<Vertex>, position: Vec3, size: Ve
         // Bottom line
         (
             vec3(x - width / 2., y - height / 2., z + length / 2.),
-            vec3(x + width / 2., y - height / 2., z + length / 2.)
+            vec3(x + width / 2., y - height / 2., z + length / 2.),
         ),
         // Left line
         (
             vec3(x + width / 2., y - height / 2., z + length / 2.),
-            vec3(x + width / 2., y + height / 2., z + length / 2.)
+            vec3(x + width / 2., y + height / 2., z + length / 2.),
         ),
         // Top line
         (
             vec3(x + width / 2., y + height / 2., z + length / 2.),
-            vec3(x - width / 2., y + height / 2., z + length / 2.)
+            vec3(x - width / 2., y + height / 2., z + length / 2.),
         ),
         // Right line
         (
             vec3(x - width / 2., y + height / 2., z + length / 2.),
-            vec3(x - width / 2., y - height / 2., z + length / 2.)
+            vec3(x - width / 2., y - height / 2., z + length / 2.),
         ),
         // ? Back face
         // Bottom line
         (
             vec3(x - width / 2., y - height / 2., z - length / 2.),
-            vec3(x + width / 2., y - height / 2., z - length / 2.)
+            vec3(x + width / 2., y - height / 2., z - length / 2.),
         ),
         // Left line
         (
             vec3(x + width / 2., y - height / 2., z - length / 2.),
-            vec3(x + width / 2., y + height / 2., z - length / 2.)
+            vec3(x + width / 2., y + height / 2., z - length / 2.),
         ),
         // Top line
         (
             vec3(x + width / 2., y + height / 2., z - length / 2.),
-            vec3(x - width / 2., y + height / 2., z - length / 2.)
+            vec3(x - width / 2., y + height / 2., z - length / 2.),
         ),
         // Right line
         (
             vec3(x - width / 2., y + height / 2., z - length / 2.),
-            vec3(x - width / 2., y - height / 2., z - length / 2.)
+            vec3(x - width / 2., y - height / 2., z - length / 2.),
         ),
         // ? Top face
         // Left line
         (
             vec3(x - width / 2., y + height / 2., z + length / 2.),
-            vec3(x - width / 2., y + height / 2., z - length / 2.)
+            vec3(x - width / 2., y + height / 2., z - length / 2.),
         ),
         // Right line
         (
             vec3(x + width / 2., y + height / 2., z + length / 2.),
-            vec3(x + width / 2., y + height / 2., z - length / 2.)
+            vec3(x + width / 2., y + height / 2., z - length / 2.),
         ),
         // Left line
         (
             vec3(x - width / 2., y - height / 2., z + length / 2.),
-            vec3(x - width / 2., y - height / 2., z - length / 2.)
+            vec3(x - width / 2., y - height / 2., z - length / 2.),
         ),
         // Right line
         (
             vec3(x + width / 2., y - height / 2., z + length / 2.),
-            vec3(x + width / 2., y - height / 2., z - length / 2.)
-        )
+            vec3(x + width / 2., y - height / 2., z - length / 2.),
+        ),
     ];
 
     for (start, end) in lines {
-        draw_line_3d(
-            renderer,
-            start,
-            end,
-            color,
-        );
+        draw_line_3d(renderer, start, end, color);
     }
 }
 
@@ -419,21 +427,21 @@ impl Default for DrawSphereParams {
 }
 
 pub fn draw_sphere(
-    renderer: &mut Renderer<Vertex>, 
-    center: Vec3, 
+    renderer: &mut Renderer<Vertex>,
+    center: Vec3,
     radius: f32,
-    texture: Option<&TextureId>, 
-    color: Color
+    texture: Option<&TextureId>,
+    color: Color,
 ) {
     draw_sphere_ex(renderer, center, radius, texture, color, Default::default());
 }
 
 pub fn draw_sphere_wires(
-    renderer: &mut Renderer<Vertex>, 
-    center: Vec3, 
-    radius: f32, 
-    texture: Option<&TextureId>, 
-    color: Color
+    renderer: &mut Renderer<Vertex>,
+    center: Vec3,
+    radius: f32,
+    texture: Option<&TextureId>,
+    color: Color,
 ) {
     let params = DrawSphereParams {
         draw_mode: DrawMode::Lines,

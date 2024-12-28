@@ -1,7 +1,10 @@
-use glam::{vec2, Vec2};
 use crate::{
-    color::Color, graphics::{DrawMode, Renderer, Vertex}, texture::Texture, utils::Rect
+    color::Color,
+    graphics::{DrawMode, Renderer, Vertex},
+    texture::Texture,
+    utils::Rect,
 };
+use glam::{vec2, Vec2};
 
 #[derive(Debug, Clone)]
 pub struct DrawTextureParams {
@@ -42,7 +45,13 @@ impl Default for DrawTextureParams {
     }
 }
 
-pub fn draw_texture(renderer: &mut Renderer<Vertex>, texture: &Texture, x: f32, y: f32, color: Color) {
+pub fn draw_texture(
+    renderer: &mut Renderer<Vertex>,
+    texture: &Texture,
+    x: f32,
+    y: f32,
+    color: Color,
+) {
     draw_texture_ex(renderer, texture, x, y, color, Default::default());
 }
 

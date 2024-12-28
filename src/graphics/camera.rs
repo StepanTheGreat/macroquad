@@ -1,7 +1,10 @@
 //! 2D and 3D camera.
 
 use crate::{
-    texture::RenderPass, texture::RenderTarget, utils::Rect, window::{screen_height, screen_width}
+    texture::RenderPass,
+    texture::RenderTarget,
+    utils::Rect,
+    window::{screen_height, screen_width},
 };
 use glam::{vec2, vec3, Mat4, Vec2, Vec3};
 
@@ -11,7 +14,7 @@ pub trait Camera {
     fn depth_enabled(&self) -> bool;
 
     fn render_pass(&self) -> Option<RenderPass>;
-    
+
     fn viewport(&self) -> Option<(i32, i32, i32, i32)>;
 }
 

@@ -2,15 +2,12 @@
 
 use std::collections::HashMap;
 
-use crate::{
-    texture::Image,
-    Error,
-};
+use crate::{texture::Image, Error};
 
 use glam::{vec3, Mat4};
 use miniquad::{FilterMode, RenderingBackend};
 
-use crate::texture::{TextureAtlas, SpriteKey};
+use crate::texture::{SpriteKey, TextureAtlas};
 
 #[derive(Debug, Clone)]
 pub(crate) struct CharacterInfo {
@@ -22,7 +19,7 @@ pub(crate) struct CharacterInfo {
 
 /// A FontAtlas is a loaded font, a GPU texture storing all characters and a character map to access
 /// said characters.
-/// 
+///
 /// ### Warning
 /// Once again, it's your responsibility to manage and properly clean this after. TextureAtlas is essentially
 /// a [TextureId] in miniquad, so after using it - delete it using [RenderingBackend]
@@ -56,10 +53,7 @@ impl std::fmt::Debug for FontAtlas {
 impl FontAtlas {
     pub fn load_from_bytes(atlas: TextureAtlas, bytes: &[u8]) -> Result<FontAtlas, Error> {
         Ok(FontAtlas {
-            font: fontdue::Font::from_bytes(
-                bytes,
-                fontdue::FontSettings::default(),
-            )?,
+            font: fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default())?,
             characters: HashMap::new(),
             atlas,
         })
@@ -69,10 +63,7 @@ impl FontAtlas {
         self.atlas = atlas;
     }
 
-    pub(crate) fn set_characters(
-        &mut self,
-        characters: HashMap<(char, u16), CharacterInfo>,
-    ) {
+    pub(crate) fn set_characters(&mut self, characters: HashMap<(char, u16), CharacterInfo>) {
         self.characters = characters;
     }
 
@@ -205,9 +196,9 @@ impl FontAtlas {
     /// # }
     /// ```
     pub fn set_filter(
-        &mut self, 
-        backend: &mut dyn RenderingBackend, 
-        filter_mode: miniquad::FilterMode
+        &mut self,
+        backend: &mut dyn RenderingBackend,
+        filter_mode: miniquad::FilterMode,
     ) {
         self.atlas.set_filter(backend, filter_mode);
     }
@@ -215,9 +206,9 @@ impl FontAtlas {
 
 /// Load font from file with "path"
 pub fn load_ttf_font(
-    backend: &mut dyn RenderingBackend, 
+    backend: &mut dyn RenderingBackend,
     path: &str,
-    filter: FilterMode
+    filter: FilterMode,
 ) -> Result<FontAtlas, Error> {
     let bytes = crate::fs::load_file(path)
         .map_err(|_| Error::FontError("The Font file couldn't be loaded"))?;
@@ -230,11 +221,10 @@ pub fn load_ttf_font(
 /// let font = load_ttf_font_from_bytes(include_bytes!("font.ttf"));
 /// ```
 pub fn load_ttf_font_from_bytes(
-    backend: &mut dyn RenderingBackend, 
+    backend: &mut dyn RenderingBackend,
     bytes: &[u8],
-    filter: FilterMode
+    filter: FilterMode,
 ) -> Result<FontAtlas, Error> {
-    
     let atlas = TextureAtlas::new(backend, filter);
     let mut font = FontAtlas::load_from_bytes(atlas, bytes)?;
 
@@ -258,14 +248,10 @@ pub fn measure_text(
 /// From given font size in world space gives
 /// (font_size, font_scale and font_aspect) params to make rasterized font
 /// looks good in currently active camera
-pub fn camera_font_scale(
-    projection: Mat4,
-    world_font_size: f32
-) -> (u16, f32, f32) {
+pub fn camera_font_scale(projection: Mat4, world_font_size: f32) -> (u16, f32, f32) {
     let (scr_w, scr_h) = miniquad::window::screen_size();
-    
-    let cam_space = projection.inverse()
-        .transform_vector3(vec3(2., 2., 0.));
+
+    let cam_space = projection.inverse().transform_vector3(vec3(2., 2., 0.));
     let (cam_w, cam_h) = (cam_space.x.abs(), cam_space.y.abs());
 
     let screen_font_size = world_font_size * scr_h / cam_h;

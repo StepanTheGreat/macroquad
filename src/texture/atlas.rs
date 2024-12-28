@@ -1,7 +1,7 @@
 use miniquad::{FilterMode, RenderingBackend, TextureId};
 
-use crate::{texture::Image, color::Color};
 use crate::utils::Rect;
+use crate::{color::Color, texture::Image};
 
 use std::collections::HashMap;
 
@@ -40,13 +40,10 @@ impl TextureAtlas {
     // well..
     const UNIQUENESS_OFFSET: u64 = 100000;
 
-    pub fn new(
-        backend: &mut dyn RenderingBackend, 
-        filter: FilterMode
-    ) -> Self {
+    pub fn new(backend: &mut dyn RenderingBackend, filter: FilterMode) -> Self {
         let image = Image::gen_image_color(512, 512, Color::new(0.0, 0.0, 0.0, 0.0));
         let mut texture = Texture::from_rgba8(backend, image.width, image.height, &image.bytes);
-        
+
         // TODO: Check whether this causes any issues. Originally, the filter is always set to Nearest,
         // totally ignoring the provided one.
         texture.set_filter(backend, filter);
@@ -72,11 +69,7 @@ impl TextureAtlas {
     }
 
     /// Change the filter for the atlas texture
-    pub fn set_filter(
-        &mut self, 
-        backend: &mut dyn RenderingBackend, 
-        filter_mode: FilterMode
-    ) {
+    pub fn set_filter(&mut self, backend: &mut dyn RenderingBackend, filter_mode: FilterMode) {
         self.filter = filter_mode;
         self.texture.set_filter(backend, filter_mode);
         // backend.texture_set_filter(self.texture, filter_mode, MipmapFilterMode::None);
@@ -95,29 +88,31 @@ impl TextureAtlas {
     }
 
     /// Get the atlas texture.
-    /// 
-    /// If *dirty*, will immediately syncronize the texture size with image size 
+    ///
+    /// If *dirty*, will immediately syncronize the texture size with image size
     pub fn texture(&mut self, backend: &mut dyn RenderingBackend) -> &Texture {
         if self.dirty {
             self.dirty = false;
-        let (texture_width, texture_height) = self.texture.size();
-        if texture_width != (self.image.width as _) || texture_height != (self.image.height as _) {
-            // We're doing here using the rendering backend, since 
-            // dropping fields simply isn't possible
-            backend.delete_texture(*self.texture.texture());
+            let (texture_width, texture_height) = self.texture.size();
+            if texture_width != (self.image.width as _)
+                || texture_height != (self.image.height as _)
+            {
+                // We're doing here using the rendering backend, since
+                // dropping fields simply isn't possible
+                backend.delete_texture(*self.texture.texture());
 
-            self.texture = Texture::from_rgba8(
-                backend,
-                self.image.width,
-                self.image.height,
-                &self.image.bytes[..],
-            );
-            self.texture.set_filter(backend, self.filter);
+                self.texture = Texture::from_rgba8(
+                    backend,
+                    self.image.width,
+                    self.image.height,
+                    &self.image.bytes[..],
+                );
+                self.texture.set_filter(backend, self.filter);
+            }
+
+            self.texture.update_with_image(backend, &self.image);
         }
 
-        self.texture.update_with_image(backend, &self.image);
-        }
-        
         &self.texture
     }
 
@@ -170,11 +165,8 @@ impl TextureAtlas {
             let new_width = self.image.width * 2;
             let new_height = self.image.height * 2;
 
-            self.image = Image::gen_image_color(
-                new_width, 
-                new_height, 
-                Color::new(0.0, 0.0, 0.0, 0.0)
-            );
+            self.image =
+                Image::gen_image_color(new_width, new_height, Color::new(0.0, 0.0, 0.0, 0.0));
 
             // recache all previously cached symbols
             for (key, sprite) in sprites {
@@ -227,9 +219,9 @@ impl TextureBatcher {
     }
 
     pub fn get_texture_rect<'a>(
-        &'a mut self, 
-        backend: &mut dyn RenderingBackend, 
-        texture: &Texture
+        &'a mut self,
+        backend: &mut dyn RenderingBackend,
+        texture: &Texture,
     ) -> Option<(&'a Texture, Rect)> {
         let id = SpriteKey::Texture(*texture.texture());
         let uv_rect = self.atlas.get_uv_rect(id)?;

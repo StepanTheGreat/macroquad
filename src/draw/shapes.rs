@@ -2,17 +2,11 @@
 
 use crate::color::Color;
 
-use crate::graphics::{DrawMode, Vertex, Renderer};
+use crate::graphics::{DrawMode, Renderer, Vertex};
 use glam::{vec2, vec3, vec4, Mat4, Vec2};
 
 /// Draws a solid triangle between points `v1`, `v2`, and `v3` with a given `color`.
-pub fn draw_triangle(
-    renderer: &mut Renderer<Vertex>,
-    v1: Vec2, 
-    v2: Vec2, 
-    v3: Vec2, 
-    color: Color
-) {
+pub fn draw_triangle(renderer: &mut Renderer<Vertex>, v1: Vec2, v2: Vec2, v3: Vec2, color: Color) {
     let vertices = [
         Vertex::new(v1.x, v1.y, 0., 0., 0., color),
         Vertex::new(v2.x, v2.y, 0., 0., 0., color),
@@ -28,12 +22,12 @@ pub fn draw_triangle(
 
 /// Draws a triangle outline between points `v1`, `v2`, and `v3` with a given line `thickness` and `color`.
 pub fn draw_triangle_lines(
-    renderer: &mut Renderer<Vertex>, 
-    v1: Vec2, 
-    v2: Vec2, 
-    v3: Vec2, 
-    thickness: f32, 
-    color: Color
+    renderer: &mut Renderer<Vertex>,
+    v1: Vec2,
+    v2: Vec2,
+    v3: Vec2,
+    thickness: f32,
+    color: Color,
 ) {
     draw_line(renderer, v1.x, v1.y, v2.x, v2.y, thickness, color);
     draw_line(renderer, v2.x, v2.y, v3.x, v3.y, thickness, color);
@@ -43,12 +37,12 @@ pub fn draw_triangle_lines(
 /// Draws a solid rectangle with its top-left corner at `[x, y]` with size `[w, h]` (width going to
 /// the right, height going down), with a given `color`.
 pub fn draw_rectangle(
-    renderer: &mut Renderer<Vertex>, 
-    x: f32, 
-    y: f32, 
-    w: f32, 
-    h: f32, 
-    color: Color
+    renderer: &mut Renderer<Vertex>,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    color: Color,
 ) {
     #[rustfmt::skip]
     let vertices = [
@@ -68,12 +62,12 @@ pub fn draw_rectangle(
 /// the right, height going down), with a given line `thickness` and `color`.
 pub fn draw_rectangle_lines(
     renderer: &mut Renderer<Vertex>,
-    x: f32, 
-    y: f32, 
-    w: f32, 
-    h: f32, 
-    thickness: f32, 
-    color: Color
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    thickness: f32,
+    color: Color,
 ) {
     let t = thickness / 2.;
 
@@ -183,12 +177,12 @@ impl Default for DrawRectangleParams {
 /// Draws a solid rectangle with its position at `[x, y]` with size `[w, h]`,
 /// with parameters.
 pub fn draw_rectangle_ex(
-    renderer: &mut Renderer<Vertex>, 
-    x: f32, 
-    y: f32, 
-    w: f32, 
-    h: f32, 
-    params: DrawRectangleParams
+    renderer: &mut Renderer<Vertex>,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    params: DrawRectangleParams,
 ) {
     let transform_matrix = Mat4::from_translation(vec3(x, y, 0.0))
         * Mat4::from_axis_angle(vec3(0.0, 0.0, 1.0), params.rotation)
@@ -239,13 +233,13 @@ pub fn draw_hexagon(
 /// Draws a solid regular polygon centered at `[x, y]` with a given number of `sides`, `radius`,
 /// clockwise `rotation` (in degrees) and `color`.
 pub fn draw_poly(
-    renderer: &mut Renderer<Vertex>, 
-    x: f32, 
-    y: f32, 
-    sides: u8, 
-    radius: f32, 
-    rotation: f32, 
-    color: Color
+    renderer: &mut Renderer<Vertex>,
+    x: f32,
+    y: f32,
+    sides: u8,
+    radius: f32,
+    rotation: f32,
+    color: Color,
 ) {
     let mut vertices = Vec::<Vertex>::with_capacity(sides as usize + 2);
     let mut indices = Vec::<u16>::with_capacity(sides as usize * 3);
@@ -282,7 +276,9 @@ pub fn draw_poly_lines(
     thickness: f32,
     color: Color,
 ) {
-    draw_arc(renderer, x, y, sides, radius, rotation, thickness, 360.0, color);
+    draw_arc(
+        renderer, x, y, sides, radius, rotation, thickness, 360.0, color,
+    );
 }
 
 /// Draws a solid circle centered at `[x, y]` with a given radius `r` and `color`.
@@ -291,13 +287,28 @@ pub fn draw_circle(renderer: &mut Renderer<Vertex>, x: f32, y: f32, r: f32, colo
 }
 
 /// Draws a circle outline centered at `[x, y]` with a given radius, line `thickness` and `color`.
-pub fn draw_circle_lines(renderer: &mut Renderer<Vertex>, x: f32, y: f32, r: f32, thickness: f32, color: Color) {
+pub fn draw_circle_lines(
+    renderer: &mut Renderer<Vertex>,
+    x: f32,
+    y: f32,
+    r: f32,
+    thickness: f32,
+    color: Color,
+) {
     draw_poly_lines(renderer, x, y, 30, r, 0., thickness, color);
 }
 
 /// Draws a solid ellipse centered at `[x, y]` with a given size `[w, h]`,
 /// clockwise `rotation` (in degrees) and `color`.
-pub fn draw_ellipse(renderer: &mut Renderer<Vertex>, x: f32, y: f32, w: f32, h: f32, rotation: f32, color: Color) {
+pub fn draw_ellipse(
+    renderer: &mut Renderer<Vertex>,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    rotation: f32,
+    color: Color,
+) {
     let sides = 20;
 
     let mut vertices = Vec::<Vertex>::with_capacity(sides as usize + 2);
@@ -371,13 +382,13 @@ pub fn draw_ellipse_lines(
 
 /// Draws a line between points `[x1, y1]` and `[x2, y2]` with a given `thickness` and `color`.
 pub fn draw_line(
-    renderer: &mut Renderer<Vertex>, 
-    x1: f32, 
-    y1: f32, 
-    x2: f32, 
-    y2: f32, 
-    thickness: f32, 
-    color: Color
+    renderer: &mut Renderer<Vertex>,
+    x1: f32,
+    y1: f32,
+    x2: f32,
+    y2: f32,
+    thickness: f32,
+    color: Color,
 ) {
     let dx = x2 - x1;
     let dy = y2 - y1;

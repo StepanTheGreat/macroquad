@@ -1,8 +1,12 @@
 use glam::{vec2, Vec2};
 use miniquad::RenderingBackend;
 
-use crate::{color::{Color, WHITE}, graphics::{Renderer, Vertex}, text::{FontAtlas, TextDimensions}, utils::Rect};
-
+use crate::{
+    color::{Color, WHITE},
+    graphics::{Renderer, Vertex},
+    text::{FontAtlas, TextDimensions},
+    utils::Rect,
+};
 
 /// Arguments for "draw_text_ex" function such as font, font_size etc
 #[derive(Debug, Clone)]
@@ -42,11 +46,11 @@ pub fn draw_text(
     backend: &mut dyn RenderingBackend,
     renderer: &mut Renderer<Vertex>,
     font: &mut FontAtlas,
-    text: &str, 
-    x: f32, 
-    y: f32, 
-    font_size: f32, 
-    color: Color
+    text: &str,
+    x: f32,
+    y: f32,
+    font_size: f32,
+    color: Color,
 ) -> TextDimensions {
     draw_text_ex(
         backend,
@@ -70,10 +74,10 @@ pub fn draw_text_ex(
     backend: &mut dyn RenderingBackend,
     renderer: &mut Renderer,
     font: &mut FontAtlas,
-    text: &str, 
-    x: f32, 
-    y: f32, 
-    params: TextParams
+    text: &str,
+    x: f32,
+    y: f32,
+    params: TextParams,
 ) -> TextDimensions {
     if text.is_empty() {
         return TextDimensions::default();
@@ -199,15 +203,7 @@ pub fn draw_multiline_text_ex(
     };
 
     for line in text.lines() {
-        draw_text_ex(
-            backend, 
-            renderer,
-            font,
-            line,
-            x, 
-            y,
-            params.clone()
-        );
+        draw_text_ex(backend, renderer, font, line, x, y, params.clone());
         y += line_distance * params.font_size as f32 * params.font_scale;
     }
 }
