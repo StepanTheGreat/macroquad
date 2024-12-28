@@ -247,3 +247,11 @@ impl Camera for Camera3D {
         self.viewport
     }
 }
+
+/// Get a pixel-perfect projection matrix (from miniquad)
+pub fn pixel_perfect_projection_matrix() -> glam::Mat4 {
+    let (width, height) = miniquad::window::screen_size();
+    let dpi = miniquad::window::dpi_scale();
+
+    glam::Mat4::orthographic_rh_gl(0., width / dpi, height / dpi, 0., -1., 1.)
+}
