@@ -15,6 +15,7 @@ pub mod text;
 pub mod texture;
 pub mod time;
 pub mod utils;
+pub mod graphics;
 // #[cfg(feature = "ui")]
 // pub mod ui;
 pub mod window;
