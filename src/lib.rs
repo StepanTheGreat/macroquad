@@ -2,7 +2,6 @@
 //!
 //! A crate designed to expose macroquad abstractions in a modular way
 
-mod graphics;
 mod tobytes;
 
 #[cfg(feature = "quad-snd")]
