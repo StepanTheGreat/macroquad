@@ -1,8 +1,23 @@
-use miniquad::{FilterMode, MipmapFilterMode, RenderingBackend, TextureId};
+use miniquad::{FilterMode, RenderingBackend, TextureId};
 
 use crate::{color::Color, utils::Rect};
 
 use super::new_texture_from_rgba8;
+
+/// Loads an [Image] from a file into CPU memory.
+/// 
+/// Currently this function returns an [Option] as an ungly workaround
+pub fn load_image(path: &str) -> Option<Image> {
+    let bytes = match crate::fs::load_file(path) {
+        Ok(bytes) => bytes,
+        Err(_) => return None
+    };
+
+    match Image::from_bytes_with_format(&bytes, None) {
+        Ok(img) => Some(img),
+        Err(_) => None
+    }
+}
 
 /// Image, data stored in CPU memory
 #[derive(Clone)]
@@ -291,7 +306,7 @@ impl Image {
     /// The texture returned is raw [miniquad::TextureId]. It's not cleaned up automatically like in
     /// macroquad, so it's your responsibility to handle it properly.
     pub fn to_texture(&self, backend: &mut dyn RenderingBackend) -> TextureId {
-        self.to_texture_ex(backend, None, None)
+        self.to_texture_ex(backend, None)
     }
 
     /// Create a raw [TextureId] from an [Image]. This is a more detailed version of
@@ -303,7 +318,6 @@ impl Image {
     pub fn to_texture_ex(&self, 
         backend: &mut dyn RenderingBackend, 
         filter: Option<FilterMode>,
-        mipmap: Option<MipmapFilterMode>
     ) -> TextureId {
         new_texture_from_rgba8(
             backend, 
@@ -311,7 +325,6 @@ impl Image {
             self.height, 
             &self.bytes, 
             filter, 
-            mipmap
         )
     }
 }

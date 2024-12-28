@@ -1,9 +1,11 @@
-use miniquad::{FilterMode, MipmapFilterMode, RenderingBackend, TextureId};
+use miniquad::{FilterMode, RenderingBackend, TextureId};
 
 use crate::{texture::Image, Color};
 use crate::utils::Rect;
 
 use std::collections::HashMap;
+
+use super::Texture;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Sprite {
@@ -18,7 +20,7 @@ pub enum SpriteKey {
 
 /// A combination of textures in a single, large texture.
 pub struct TextureAtlas {
-    texture: TextureId,
+    texture: Texture,
     image: Image,
     pub sprites: HashMap<SpriteKey, Sprite>,
     cursor_x: u16,
@@ -43,15 +45,11 @@ impl TextureAtlas {
         filter: FilterMode
     ) -> Self {
         let image = Image::gen_image_color(512, 512, Color::new(0.0, 0.0, 0.0, 0.0));
-        let texture = backend.new_texture_from_rgba8(image.width, image.height, &image.bytes);
+        let mut texture = Texture::from_rgba8(backend, image.width, image.height, &image.bytes);
         
-        backend.texture_set_filter(
-            texture,
-            // TODO: Check whether this causes any issues. Originally, the filter is always set to Nearest,
-            // totally ignoring the provided one.
-            filter,
-            MipmapFilterMode::None,
-        );
+        // TODO: Check whether this causes any issues. Originally, the filter is always set to Nearest,
+        // totally ignoring the provided one.
+        texture.set_filter(backend, filter);
 
         Self {
             image,
@@ -66,19 +64,22 @@ impl TextureAtlas {
         }
     }
 
+    /// Get a new unique sprite key
     pub fn new_unique_id(&mut self) -> SpriteKey {
         self.unique_id += 1;
 
         SpriteKey::Id(self.unique_id)
     }
 
+    /// Change the filter for the atlas texture
     pub fn set_filter(
         &mut self, 
         backend: &mut dyn RenderingBackend, 
         filter_mode: FilterMode
     ) {
         self.filter = filter_mode;
-        backend.texture_set_filter(self.texture, filter_mode, MipmapFilterMode::None);
+        self.texture.set_filter(backend, filter_mode);
+        // backend.texture_set_filter(self.texture, filter_mode, MipmapFilterMode::None);
     }
 
     pub fn get(&self, key: SpriteKey) -> Option<Sprite> {
@@ -93,36 +94,39 @@ impl TextureAtlas {
         self.image.height
     }
 
-    pub fn texture(&mut self, backend: &mut dyn RenderingBackend) -> TextureId {
+    /// Get the atlas texture.
+    /// 
+    /// If *dirty*, will immediately update the texture
+    pub fn texture(&mut self, backend: &mut dyn RenderingBackend) -> &Texture {
         if self.dirty {
             self.dirty = false;
-            let (texture_width, texture_height) = backend.texture_size(self.texture);
+            let (texture_width, texture_height) = self.texture.size();
             if texture_width != (self.image.width as _) || texture_height != (self.image.height as _) {
-                backend.delete_texture(self.texture);
+                // We're doing here using the rendering backend, since 
+                // dropping fields simply isn't possible
+                backend.delete_texture(*self.texture.texture());
 
-                self.texture = backend.new_texture_from_rgba8(
+                self.texture = Texture::from_rgba8(
+                    backend,
                     self.image.width,
                     self.image.height,
                     &self.image.bytes[..],
                 );
-
-                backend.texture_set_filter(self.texture, self.filter, MipmapFilterMode::None);
+                self.texture.set_filter(backend, self.filter);
+                // backend.texture_set_filter(self.texture, self.filter, MipmapFilterMode::None);
             }
 
-            backend.texture_update(self.texture, &self.image.bytes);
+            self.texture.update_with_image(backend, &self.image);
+            // backend.texture_update(self.texture, &self.image.bytes);
         }
 
-        self.texture
+        &self.texture
     }
 
-    pub fn get_uv_rect(
-        &self, 
-        backend: &mut dyn RenderingBackend, 
-        key: SpriteKey
-    ) -> Option<Rect> {
+    /// Try to get a rect in the atlas for the provided sprite key
+    pub fn get_uv_rect(&self, key: SpriteKey) -> Option<Rect> {
         self.get(key).map(|sprite| {
-            // TODO: Check whether this call can be avoided, and (image.width, image.height) can be used instead
-            let (w, h) = backend.texture_size(self.texture);
+            let (w, h) = self.texture.size();
 
             Rect::new(
                 sprite.rect.x / w as f32,
@@ -168,8 +172,11 @@ impl TextureAtlas {
             let new_width = self.image.width * 2;
             let new_height = self.image.height * 2;
 
-            self.image =
-                Image::gen_image_color(new_width, new_height, Color::new(0.0, 0.0, 0.0, 0.0));
+            self.image = Image::gen_image_color(
+                new_width, 
+                new_height, 
+                Color::new(0.0, 0.0, 0.0, 0.0)
+            );
 
             // recache all previously cached symbols
             for (key, sprite) in sprites {
@@ -199,5 +206,51 @@ impl TextureAtlas {
                 },
             );
         }
+    }
+}
+
+/// Batches textures into a single, large atlas. A useful optimization if you have multiple
+/// smaller textures and you would like to combine them to avoid issuing multiple draw calls per each
+pub struct TextureBatcher {
+    unbatched: Vec<TextureId>,
+    atlas: TextureAtlas,
+}
+
+impl TextureBatcher {
+    pub fn new(backend: &mut dyn RenderingBackend) -> Self {
+        Self {
+            unbatched: Vec::new(),
+            atlas: TextureAtlas::new(backend, FilterMode::Linear),
+        }
+    }
+
+    pub fn add_unbatched(&mut self, texture: &Texture) {
+        self.unbatched.push(*texture.texture());
+    }
+
+    pub fn get_texture_rect<'a>(
+        &'a mut self, 
+        backend: &mut dyn RenderingBackend, 
+        texture: &Texture
+    ) -> Option<(&'a Texture, Rect)> {
+        let id = SpriteKey::Texture(*texture.texture());
+        let uv_rect = self.atlas.get_uv_rect(id)?;
+        Some((self.atlas.texture(backend), uv_rect))
+    }
+
+    /// Get all unbatched textures and combine them into a single texture
+    pub fn build(&mut self, backend: &mut dyn RenderingBackend) {
+        for texture in self.unbatched.drain(0..) {
+            let sprite: Image = Image::from_texture(backend, &texture);
+            let id = SpriteKey::Texture(texture);
+
+            self.atlas.cache_sprite(id, sprite);
+        }
+
+        // ? It seems like this code is for debugging only purposes, so I'll leave it for now
+        // TODO: Do something about telemetry
+        // let texture = self.atlas.texture();
+        // let (w, h) = backend.texture_size(texture);
+        // crate::telemetry::log_string(&format!("Atlas: {} {}", w, h));
     }
 }
