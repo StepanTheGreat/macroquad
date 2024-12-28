@@ -96,30 +96,28 @@ impl TextureAtlas {
 
     /// Get the atlas texture.
     /// 
-    /// If *dirty*, will immediately update the texture
+    /// If *dirty*, will immediately syncronize the texture size with image size 
     pub fn texture(&mut self, backend: &mut dyn RenderingBackend) -> &Texture {
         if self.dirty {
             self.dirty = false;
-            let (texture_width, texture_height) = self.texture.size();
-            if texture_width != (self.image.width as _) || texture_height != (self.image.height as _) {
-                // We're doing here using the rendering backend, since 
-                // dropping fields simply isn't possible
-                backend.delete_texture(*self.texture.texture());
+        let (texture_width, texture_height) = self.texture.size();
+        if texture_width != (self.image.width as _) || texture_height != (self.image.height as _) {
+            // We're doing here using the rendering backend, since 
+            // dropping fields simply isn't possible
+            backend.delete_texture(*self.texture.texture());
 
-                self.texture = Texture::from_rgba8(
-                    backend,
-                    self.image.width,
-                    self.image.height,
-                    &self.image.bytes[..],
-                );
-                self.texture.set_filter(backend, self.filter);
-                // backend.texture_set_filter(self.texture, self.filter, MipmapFilterMode::None);
-            }
-
-            self.texture.update_with_image(backend, &self.image);
-            // backend.texture_update(self.texture, &self.image.bytes);
+            self.texture = Texture::from_rgba8(
+                backend,
+                self.image.width,
+                self.image.height,
+                &self.image.bytes[..],
+            );
+            self.texture.set_filter(backend, self.filter);
         }
 
+        self.texture.update_with_image(backend, &self.image);
+        }
+        
         &self.texture
     }
 
