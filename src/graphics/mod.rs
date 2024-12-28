@@ -1,5 +1,7 @@
 //! Everything graphics related
 
+use std::fmt::Debug;
+
 use crate::color::Color;
 use glam::{vec2, vec3, vec4, Vec2, Vec3, Vec4};
 use miniquad::{VertexAttribute, VertexFormat};
@@ -20,14 +22,14 @@ pub use material::{use_default_material, use_material, Material, MaterialParams}
 /// since it will be casted to bytes in the graphics pipeline after.
 pub unsafe trait AsVertex
 where
-    Self: Clone + Copy,
+    Self: Clone + Copy + Debug + PartialEq,
 {
     /// Get [`VertexAttribute`]s of this Vertex. This is required when constructing pipelines
     fn attributes() -> Vec<VertexAttribute>;
 }
 
 #[repr(C)]
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub struct Vertex {
     pub position: Vec3,
     pub uv: Vec2,

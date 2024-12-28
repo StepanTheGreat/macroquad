@@ -6,7 +6,7 @@ pub use miniquad::{TextureId as MiniquadTexture, UniformDesc};
 
 use crate::{color::Color, logging::warn, tobytes::ToBytes, Error};
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, marker::PhantomData};
 
 pub(crate) use super::{AsVertex, Vertex};
 
@@ -17,9 +17,24 @@ pub enum DrawMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct GlPipeline(usize);
+pub struct GlPipeline<V>
+where V: AsVertex { 
+    id: usize,
+    _m: PhantomData<V>
+}
 
-struct DrawCall {
+impl<V> GlPipeline<V>
+where V: AsVertex {
+    const fn new(id: usize) -> Self {
+        Self {
+            id,
+            _m: PhantomData
+        }
+    }
+}
+
+struct DrawCall<V>
+where V: AsVertex {
     vertices_count: usize,
     indices_count: usize,
     vertices_start: usize,
@@ -32,22 +47,23 @@ struct DrawCall {
     model: glam::Mat4,
 
     draw_mode: DrawMode,
-    pipeline: GlPipeline,
+    pipeline: GlPipeline<V>,
     uniforms: Option<Vec<u8>>,
     render_pass: Option<RenderPass>,
     capture: bool,
 }
 
-impl DrawCall {
+impl<V> DrawCall<V>
+where V: AsVertex {
     const fn new(
         texture: Option<miniquad::TextureId>,
         model: glam::Mat4,
         draw_mode: DrawMode,
-        pipeline: GlPipeline,
+        pipeline: GlPipeline<V>,
         uniforms: Option<Vec<u8>>,
         render_pass: Option<RenderPass>,
-    ) -> DrawCall {
-        DrawCall {
+    ) -> Self {
+        Self {
             vertices_start: 0,
             indices_start: 0,
             vertices_count: 0,
@@ -65,13 +81,14 @@ impl DrawCall {
     }
 }
 
-struct RendererState {
+struct RendererState<V>
+where V: AsVertex {
     texture: Option<miniquad::TextureId>,
     draw_mode: DrawMode,
     clip: Option<(i32, i32, i32, i32)>,
     viewport: Option<(i32, i32, i32, i32)>,
     model_stack: Vec<glam::Mat4>,
-    pipeline: Option<GlPipeline>,
+    pipeline: Option<GlPipeline<V>>,
     depth_test_enable: bool,
 
     break_batching: bool,
@@ -80,7 +97,8 @@ struct RendererState {
     capture: bool,
 }
 
-impl RendererState {
+impl<V> RendererState<V>
+where V: AsVertex {
     fn model(&self) -> glam::Mat4 {
         *self.model_stack.last().unwrap()
     }
@@ -95,15 +113,18 @@ struct Uniform {
 }
 
 #[derive(Clone)]
-struct PipelineExt {
+struct PipelineExt<V>
+where V: AsVertex {
     pipeline: miniquad::Pipeline,
     uniforms: Vec<Uniform>,
     uniforms_data: Vec<u8>,
     textures: Vec<String>,
     textures_data: BTreeMap<String, MiniquadTexture>,
+    _m: PhantomData<V>
 }
 
-impl PipelineExt {
+impl<V> PipelineExt<V>
+where V: AsVertex {
     fn set_uniform<T>(&mut self, name: &str, uniform: T) {
         let uniform_meta = self.uniforms.iter().find(
             |Uniform {
@@ -185,19 +206,22 @@ impl PipelineExt {
     }
 }
 
-struct PipelineStorage {
-    pipelines: [Option<PipelineExt>; Self::MAX_PIPELINES],
+const MAX_PIPELINES: usize = 32;
+
+struct PipelineStorage<V>
+where V: AsVertex {
+    pipelines: [Option<PipelineExt<V>>; MAX_PIPELINES],
     pipelines_amount: usize,
 }
 
-impl PipelineStorage {
-    const MAX_PIPELINES: usize = 32;
-    const TRIANGLES_PIPELINE: GlPipeline = GlPipeline(0);
-    const LINES_PIPELINE: GlPipeline = GlPipeline(1);
-    const TRIANGLES_DEPTH_PIPELINE: GlPipeline = GlPipeline(2);
-    const LINES_DEPTH_PIPELINE: GlPipeline = GlPipeline(3);
+impl<V> PipelineStorage<V>
+where V: AsVertex {
+    const TRIANGLES_PIPELINE: GlPipeline<V> = GlPipeline::new(0);
+    const LINES_PIPELINE: GlPipeline<V> = GlPipeline::new(1);
+    const TRIANGLES_DEPTH_PIPELINE: GlPipeline<V> = GlPipeline::new(2);
+    const LINES_DEPTH_PIPELINE: GlPipeline<V> = GlPipeline::new(3);
 
-    fn new<V: AsVertex>(ctx: &mut dyn RenderingBackend) -> Self {
+    fn new(ctx: &mut dyn RenderingBackend) -> Self {
         let shader = ctx
             .new_shader(
                 match ctx.info().backend {
@@ -227,7 +251,7 @@ impl PipelineStorage {
             pipelines_amount: 0,
         };
 
-        let triangles_pipeline = storage.make_pipeline::<V>(
+        let triangles_pipeline = storage.make_pipeline(
             ctx,
             shader,
             PipelineParams {
@@ -239,7 +263,7 @@ impl PipelineStorage {
         );
         assert_eq!(triangles_pipeline, Self::TRIANGLES_PIPELINE);
 
-        let lines_pipeline = storage.make_pipeline::<V>(
+        let lines_pipeline = storage.make_pipeline(
             ctx,
             shader,
             PipelineParams {
@@ -251,7 +275,7 @@ impl PipelineStorage {
         );
         assert_eq!(lines_pipeline, Self::LINES_PIPELINE);
 
-        let triangles_depth_pipeline = storage.make_pipeline::<V>(
+        let triangles_depth_pipeline = storage.make_pipeline(
             ctx,
             shader,
             PipelineParams {
@@ -265,7 +289,7 @@ impl PipelineStorage {
         );
         assert_eq!(triangles_depth_pipeline, Self::TRIANGLES_DEPTH_PIPELINE);
 
-        let lines_depth_pipeline = storage.make_pipeline::<V>(
+        let lines_depth_pipeline = storage.make_pipeline(
             ctx,
             shader,
             PipelineParams {
@@ -282,14 +306,14 @@ impl PipelineStorage {
         storage
     }
 
-    fn make_pipeline<V: AsVertex>(
+    fn make_pipeline(
         &mut self,
         backend: &mut dyn RenderingBackend,
         shader: ShaderId,
         params: PipelineParams,
         mut uniforms: Vec<UniformDesc>,
         textures: Vec<String>,
-    ) -> GlPipeline {
+    ) -> GlPipeline<V> {
         let pipeline = backend.new_pipeline(
             &[BufferLayout::default()],
             &(V::attributes()),
@@ -332,10 +356,11 @@ impl PipelineStorage {
             uniforms_data: vec![0; max_offset],
             textures,
             textures_data: BTreeMap::new(),
+            _m: PhantomData
         });
         self.pipelines_amount += 1;
 
-        GlPipeline(id)
+        GlPipeline::new(id)
     }
 
     /// Get the default pipeline by draw mode and depth flag
@@ -343,7 +368,7 @@ impl PipelineStorage {
         &self,
         draw_mode: DrawMode,
         depth_enabled: bool,
-    ) -> GlPipeline {
+    ) -> GlPipeline<V> {
         match (draw_mode, depth_enabled) {
             (DrawMode::Triangles, false) => Self::TRIANGLES_PIPELINE,
             (DrawMode::Triangles, true) => Self::TRIANGLES_DEPTH_PIPELINE,
@@ -353,17 +378,17 @@ impl PipelineStorage {
     }
 
     /// Find a pipeline by pipeline ID ([GlPipeline])
-    fn get_pipeline_mut(&mut self, pip: &GlPipeline) -> Option<&mut PipelineExt> {
-        self.pipelines[pip.0].as_mut()
+    fn get_pipeline_mut(&mut self, pip: &GlPipeline<V>) -> Option<&mut PipelineExt<V>> {
+        (self.pipelines[pip.id]).as_mut()
     }
 
     /// Check whether this storage has the specified pipeline
-    fn has_pipeline(&self, pip: &GlPipeline) -> bool {
-        self.pipelines[pip.0].is_some()
+    fn has_pipeline(&self, pip: &GlPipeline<V>) -> bool {
+        self.pipelines[pip.id].is_some()
     }
 
-    fn delete_pipeline(&mut self, pip: GlPipeline) {
-        self.pipelines[pip.0] = None;
+    fn delete_pipeline(&mut self, pip: GlPipeline<V>) {
+        self.pipelines[pip.id] = None;
     }
 }
 
@@ -375,12 +400,12 @@ pub struct Renderer<V = Vertex>
 where
     V: AsVertex,
 {
-    pipelines: PipelineStorage,
+    pipelines: PipelineStorage<V>,
 
-    draw_calls: Vec<DrawCall>,
+    draw_calls: Vec<DrawCall<V>>,
     draw_calls_bindings: Vec<Bindings>,
     draw_calls_count: usize,
-    state: RendererState,
+    state: RendererState<V>,
     start_time: f64,
 
     pub(crate) white_texture: miniquad::TextureId,
@@ -392,9 +417,7 @@ where
 }
 
 impl<V> Renderer<V>
-where
-    V: AsVertex,
-{
+where V: AsVertex {
     pub fn new(
         ctx: &mut dyn miniquad::RenderingBackend,
         max_vertices: usize,
@@ -403,7 +426,7 @@ where
         let white_texture = ctx.new_texture_from_rgba8(1, 1, &[255, 255, 255, 255]);
 
         Self {
-            pipelines: PipelineStorage::new::<V>(ctx),
+            pipelines: PipelineStorage::new(ctx),
             state: RendererState {
                 clip: None,
                 viewport: None,
@@ -436,7 +459,7 @@ where
         params: PipelineParams,
         uniforms: Vec<UniformDesc>,
         textures: Vec<String>,
-    ) -> Result<GlPipeline, Error> {
+    ) -> Result<GlPipeline<V>, Error> {
         let mut shader_meta: ShaderMeta = shader::meta();
 
         for uniform in &uniforms {
@@ -461,7 +484,7 @@ where
 
         Ok(self
             .pipelines
-            .make_pipeline::<V>(ctx, shader, params, uniforms, textures))
+            .make_pipeline(ctx, shader, params, uniforms, textures))
     }
 
     /// Clear the framebuffer with a specified color, then clear the draw calls
@@ -666,7 +689,7 @@ where
         }
     }
 
-    pub fn with_pipeline(&mut self, pipeline: Option<GlPipeline>) {
+    pub fn with_pipeline(&mut self, pipeline: Option<GlPipeline<V>>) {
         if self.state.pipeline == pipeline {
             return;
         }
@@ -768,16 +791,16 @@ where
         dc.texture = self.state.texture;
     }
 
-    pub fn delete_pipeline(&mut self, pipeline: GlPipeline) {
+    pub fn delete_pipeline(&mut self, pipeline: GlPipeline<V>) {
         self.pipelines.delete_pipeline(pipeline);
     }
 
     /// Check whether this renderer has this specific pipeline
-    pub fn has_pipeline(&self, pipeline: &GlPipeline) -> bool {
+    pub fn has_pipeline(&self, pipeline: &GlPipeline<V>) -> bool {
         self.pipelines.has_pipeline(pipeline)
     }
 
-    pub fn set_uniform<T>(&mut self, pipeline: &GlPipeline, name: &str, uniform: T) {
+    pub fn set_uniform<T>(&mut self, pipeline: &GlPipeline<V>, name: &str, uniform: T) {
         self.state.break_batching = true;
 
         self.pipelines
@@ -788,7 +811,7 @@ where
 
     pub fn set_uniform_array<T: ToBytes>(
         &mut self,
-        pipeline: &GlPipeline,
+        pipeline: &GlPipeline<V>,
         name: &str,
         uniform: &[T],
     ) {
@@ -801,7 +824,7 @@ where
     }
 
     /// Set a texture under specified name for the provided pipeline
-    pub fn set_texture(&mut self, pipeline: &GlPipeline, name: &str, texture: TextureId) {
+    pub fn set_texture(&mut self, pipeline: &GlPipeline<V>, name: &str, texture: TextureId) {
         let pipeline = self
             .pipelines
             .get_pipeline_mut(pipeline)

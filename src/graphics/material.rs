@@ -1,8 +1,11 @@
 //! Custom materials - shaders, uniforms.
 
+use std::marker::PhantomData;
+
 use crate::{tobytes::ToBytes, Error};
 use miniquad::{PipelineParams, RenderingBackend, TextureId, UniformDesc};
 
+use super::AsVertex;
 use super::GlPipeline;
 
 use super::Renderer;
@@ -17,39 +20,50 @@ use super::Renderer;
 /// 2. A material is inherently bound to a specific renderer from which you created it. That means that if you
 ///    try to use a material on a renderer that doesn't have it - it will panic.  
 #[derive(Clone, PartialEq)]
-pub struct Material {
-    pipeline: GlPipeline,
+pub struct Material<V>
+where V: AsVertex {
+    pipeline: GlPipeline<V>,
+    _m: PhantomData<V>
 }
 
-impl std::fmt::Debug for Material {
+impl<V> std::fmt::Debug for Material<V>
+where V: AsVertex {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Material").finish()
     }
 }
 
-impl Material {
-    fn from_pipeline(pipeline: GlPipeline) -> Self {
-        Self { pipeline }
+impl<V> Material<V>
+where V: AsVertex {
+    fn from_pipeline(pipeline: GlPipeline<V>) -> Self {
+        Self { 
+            pipeline,
+            _m: PhantomData 
+        }
     }
 
     /// Set GPU uniform value for this material.
     /// "name" should be from "uniforms" list used for material creation.
     /// Otherwise uniform value would be silently ignored.
-    pub fn set_uniform<T>(&self, renderer: &mut Renderer, name: &str, uniform: T) {
+    pub fn set_uniform<T>(&self, renderer: &mut Renderer<V>, name: &str, uniform: T) {
         renderer.set_uniform(&self.pipeline, name, uniform);
     }
 
     pub fn set_uniform_array<T: ToBytes>(
         &self,
-        renderer: &mut Renderer,
+        renderer: &mut Renderer<V>,
         name: &str,
         uniform: &[T],
     ) {
         renderer.set_uniform_array(&self.pipeline, name, uniform);
     }
 
-    pub fn set_texture(&self, renderer: &mut Renderer, name: &str, texture: &TextureId) {
+    pub fn set_texture(&self, renderer: &mut Renderer<V>, name: &str, texture: &TextureId) {
         renderer.set_texture(&self.pipeline, name, *texture);
+    }
+
+    pub fn pipeline(&self) -> &GlPipeline<V> {
+        &self.pipeline
     }
 }
 
@@ -76,12 +90,12 @@ pub struct MaterialParams {
 ///    to properly clean it after use.
 /// 2. Given materials can only be used with renderers with which you created said materials.
 ///    Since pipelines (from said materials) are renderer bound, using them on another renderer will cause a panic
-pub fn load_material(
+pub fn load_material<V: AsVertex>(
     backend: &mut dyn RenderingBackend,
-    renderer: &mut Renderer,
+    renderer: &mut Renderer<V>,
     shader: miniquad::ShaderSource,
     params: MaterialParams,
-) -> Result<Material, Error> {
+) -> Result<Material<V>, Error> {
     let pipeline = renderer.make_pipeline(
         backend,
         shader,
@@ -98,7 +112,7 @@ pub fn load_material(
 /// ### Attention
 /// This function will panic if you use it on a renderer that doesn't have said material.
 /// To check: use [has_material]
-pub fn use_material(renderer: &mut Renderer, material: &Material) {
+pub fn use_material<V: AsVertex>(renderer: &mut Renderer<V>, material: &Material<V>) {
     renderer.with_pipeline(Some(material.pipeline));
 }
 
@@ -106,7 +120,7 @@ pub fn use_material(renderer: &mut Renderer, material: &Material) {
 ///
 /// It's highly important to only use materials given by the same renderers, to avoid
 /// panics
-pub fn has_material(renderer: &mut Renderer, material: &Material) -> bool {
+pub fn has_material<V: AsVertex>(renderer: &mut Renderer<V>, material: &Material<V>) -> bool {
     renderer.has_pipeline(&material.pipeline)
 }
 
