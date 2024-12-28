@@ -11,7 +11,7 @@ audio = ["quad-snd"]
 log-rs = ["log"]
 glam-serde = ["glam/serde"]
 ui = []
-default = []
+default = ["audio", "log"]
 
 [package.metadata.android]
 assets = "examples/"
@@ -30,7 +30,7 @@ image = { version = "0.24", default-features = false, features = ["png", "tga"] 
 fontdue = "0.9"
 backtrace = { version = "0.3.60", optional = true, default-features = false, features = [ "std", "libbacktrace" ] }
 log = { version = "0.4", optional = true }
-quad-snd = { version = "0.2", optional = true }
+quad-snd = { version = "0.2", optional = true}
 
 # Workaround to fix the examples
 # This allows to use macroquad-particles in examples without two versions of macroquad
