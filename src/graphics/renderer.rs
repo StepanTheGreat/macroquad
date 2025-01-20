@@ -892,6 +892,11 @@ where V: AsVertex {
             };
         }
     }
+
+    /// Get the current amount of draw calls
+    pub fn draw_calls(&self) -> usize {
+        self.draw_calls_count
+    }
 }
 
 mod shader {
