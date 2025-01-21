@@ -81,9 +81,10 @@ impl InputState {
         }
     }
 
-    /// Since we don't want to use the same information throughout multiple frames,
-    /// we need to reset it. Call this at the end of each frame
-    pub fn post_frame_cleanup(&mut self) {
+    /// Since we don't want to use the same information throughout multiple frames, we need to reset it. 
+    /// 
+    /// Call this at the end of each frame
+    pub fn reset_state(&mut self) {
         self.mouse_wheel = Vec2::new(0., 0.);
         self.keys_pressed.clear();
         self.keys_released.clear();
