@@ -2,10 +2,10 @@
 
 use std::collections::HashMap;
 
-use crate::{texture::Image, Error};
+use crate::{texture::{Image, Texture}, Error};
 
 use glam::{vec3, Mat4};
-use miniquad::{FilterMode, RenderingBackend};
+use miniquad::{FilterMode, RenderingBackend, TextureId};
 
 use crate::texture::{SpriteKey, TextureAtlas};
 
@@ -201,6 +201,13 @@ impl FontAtlas {
         filter_mode: miniquad::FilterMode,
     ) {
         self.atlas.set_filter(backend, filter_mode);
+    }
+
+    /// Get a reference to the inner atlas. 
+    /// 
+    /// This can be used to clean the GPU texture when it's no longer used
+    pub fn atlas(&self) -> &TextureAtlas {
+        &self.atlas
     }
 }
 
