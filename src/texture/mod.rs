@@ -132,15 +132,6 @@ impl Texture {
     pub fn to_image(&self, backend: &mut dyn RenderingBackend) -> Image {
         Image::from_texture(backend, &self.texture)
     }
-
-    /// Delete the texture. It's the same as
-    /// ```
-    /// backend.delete_texture(texture.texture());
-    /// ```
-    /// but, it's also a bit more convenient, since it's a self consuming method
-    pub fn delete(self, backend: &mut dyn RenderingBackend) {
-        backend.delete_texture(self.texture);
-    }
 }
 
 /// Create a texture from RGBA byte array and specified size, filter and mipmap filter information.
