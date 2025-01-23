@@ -89,7 +89,7 @@ impl TextureAtlas {
 
     /// Get the atlas texture.
     ///
-    /// If *dirty*, will immediately syncronize the texture size with image size
+    /// If *dirty*, will immediately syncronize the texture size with the image
     pub fn texture(&mut self, backend: &mut dyn RenderingBackend) -> &Texture {
         if self.dirty {
             self.dirty = false;
@@ -114,6 +114,20 @@ impl TextureAtlas {
         }
 
         &self.texture
+    }
+
+    /// Get a reference to the inner texture.
+    /// 
+    /// Don't use this unless you need to clean the texture, as it will return a dirty texture that wasn't updated with the latest atlas changes.
+    pub fn texture_desync(&self) -> &Texture {
+        &self.texture
+    }
+
+    /// Check whether the atlas is dirty. 
+    /// 
+    /// A dirty atlas simply means that it wasn't yet updated with the actual atlas CPU image.
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
     }
 
     /// Try to get a rect in the atlas for the provided sprite key
