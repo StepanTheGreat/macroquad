@@ -10,8 +10,7 @@ use crate::{
 
 /// Arguments for "draw_text_ex" function such as font, font_size etc
 #[derive(Debug, Clone)]
-pub struct TextParams<'a> {
-    pub font: Option<&'a FontAtlas>,
+pub struct TextParams {
     /// Base size for character height. The size in pixel used during font rasterizing.
     pub font_size: u16,
     /// The glyphs sizes actually drawn on the screen will be font_size * font_scale
@@ -27,10 +26,9 @@ pub struct TextParams<'a> {
     pub color: Color,
 }
 
-impl<'a> Default for TextParams<'a> {
-    fn default() -> TextParams<'a> {
+impl Default for TextParams {
+    fn default() -> TextParams {
         TextParams {
-            font: None,
             font_size: 20,
             font_scale: 1.0,
             font_scale_aspect: 1.0,
@@ -193,10 +191,8 @@ pub fn draw_multiline_text_ex(
         Some(distance) => distance,
         None => {
             let mut font_line_distance = 0.0;
-            if let Some(font) = params.font {
-                if let Some(metrics) = font.font.horizontal_line_metrics(1.0) {
-                    font_line_distance = metrics.new_line_size;
-                }
+            if let Some(metrics) = font.font.horizontal_line_metrics(1.0) {
+                font_line_distance = metrics.new_line_size;
             }
             font_line_distance
         }
