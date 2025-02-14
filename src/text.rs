@@ -59,6 +59,15 @@ impl FontAtlas {
         })
     }
 
+    /// Load from [fontdue::Font]
+    pub fn load_from_font(atlas: TextureAtlas, font: fontdue::Font) -> FontAtlas {
+        FontAtlas {
+            font,
+            characters: HashMap::new(),
+            atlas,
+        }
+    }
+
     pub fn set_atlas(&mut self, atlas: TextureAtlas) {
         self.atlas = atlas;
     }
